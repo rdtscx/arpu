@@ -1,5 +1,5 @@
 <?php
-$allowed_origins = ['http://localhost', 'http://127.0.0.1', 'https://arpu.151365.cc', 'http://arpu.151365.cc'];
+$allowed_origins = ['http://localhost', 'http://127.0.0.1'];
 $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
 if (in_array($origin, $allowed_origins)) {
     header("Access-Control-Allow-Origin: $origin");
