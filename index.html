@@ -405,7 +405,7 @@
         <div class="fc-body">
           <div class="fc-fields" id="fc-fields">
             <div class="fc-field" data-idx="0">
-              <div class="fc-label">未来 1 月 <span class="fc-memo" id="fc-m1">—</span></div>
+              <div class="fc-label">当前月 <span class="fc-memo" id="fc-m1">—</span></div>
               <div class="fc-input"><span class="fc-pre">¥</span><input data-k="0" type="text" inputmode="decimal" placeholder="输入预计消费后自动展开下月"><span class="fc-post">元</span></div>
             </div>
           </div>
@@ -660,7 +660,7 @@
     var f = document.createElement('div');
     f.className = 'fc-field'; f.setAttribute('data-idx', idx);
     var m = (fcData.curMonth ? fcMonthN(fcData.curMonth, idx) : '—');
-    f.innerHTML = '<div class="fc-label">未来 ' + (idx + 1) + ' 月 <span class="fc-memo" id="fc-m' + (idx + 1) + '">' + m + ' 预测</span></div>'
+    f.innerHTML = '<div class="fc-label">未来 ' + idx + ' 月 <span class="fc-memo" id="fc-m' + (idx + 1) + '">' + m + ' 预测</span></div>'
       + '<div class="fc-input"><span class="fc-pre">¥</span><input data-k="' + idx + '" type="text" inputmode="decimal" placeholder="预计消费"><span class="fc-post">元</span></div>';
     document.getElementById('fc-fields').appendChild(f);
     f.querySelector('input').addEventListener('input', calcForecast);
