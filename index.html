@@ -240,6 +240,9 @@
   @media (max-width:480px){
     .fc-fields{grid-template-columns:1fr}
     .fc-field{margin-top:10px}
+    .chart-wrap svg text.dn{font-size:16px !important}
+    .chart-wrap svg text.ax{font-size:13px !important}
+    .chart-wrap svg text.ay{font-size:12px !important}
   }
 
   
@@ -828,7 +831,7 @@
       var yy = PT + ph - ph * f;
       var val = Math.round(max * f);
       grid += '<line x1="' + PL + '" y1="' + yy + '" x2="' + (W - PR) + '" y2="' + yy + '" stroke="#eef1f6" stroke-width="1"/>'
-            + '<text x="' + (PL - 8) + '" y="' + (yy + 4) + '" font-size="12" font-weight="600" fill="#aab4c8" text-anchor="end">' + val + '</text>';
+            + '<text class="ay" x="' + (PL - 8) + '" y="' + (yy + 4) + '" font-size="12" font-weight="600" fill="#aab4c8" text-anchor="end">' + val + '</text>';
     });
 
     
@@ -876,7 +879,7 @@
       lastLY = ly; lastLX = p.x;
       var fill = p.fore ? (isCur ? '#ec4899' : (isCarry ? '#2563eb' : '#b45309')) : '#33415e';
       var lx = Math.max(PL + 2, Math.min(p.x, W - PR - 18));
-      labels += '<text x="' + lx.toFixed(1) + '" y="' + ly + '" font-size="15" font-weight="700" fill="' + fill + '" text-anchor="middle">' + fmtUp(p.v) + '</text>';
+      labels += '<text class="dn" x="' + lx.toFixed(1) + '" y="' + ly + '" font-size="15" font-weight="700" fill="' + fill + '" text-anchor="middle">' + fmtUp(p.v) + '</text>';
     });
 
     
@@ -889,7 +892,7 @@
       else if(p.fore){ lbl = p.m + '月·预'; col = '#b45309'; }
       else { lbl = p.m + '月'; col = '#7c8aa5'; }
       var tx = Math.max(PL + 2, Math.min(p.x, W - PR - 24));
-      return '<text x="' + tx.toFixed(1) + '" y="' + (H - 8) + '" font-size="14" font-weight="700" fill="' + col + '" text-anchor="middle">' + esc(lbl) + '</text>';
+      return '<text class="ax" x="' + tx.toFixed(1) + '" y="' + (H - 8) + '" font-size="14" font-weight="700" fill="' + col + '" text-anchor="middle">' + esc(lbl) + '</text>';
     }).join('');
 
     
