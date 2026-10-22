@@ -38,7 +38,7 @@
     line-height:1.5;
   }
 
-
+  
   .appbar{
     background:var(--card);
     border-bottom:1px solid var(--line);
@@ -64,7 +64,7 @@
     background:var(--accent-soft);border-radius:20px;padding:4px 10px;flex:none;
   }
 
-
+  
   .main{max-width:760px;margin:0 auto;padding:18px 16px 40px}
   .section-title{
     font-size:12px;font-weight:600;color:var(--muted);
@@ -72,7 +72,7 @@
   }
   .section-title:first-child{margin-top:2px}
 
-
+  
   .card{
     background:var(--card);border-radius:var(--radius);
     box-shadow:var(--shadow-sm);
@@ -81,7 +81,7 @@
   }
   .card+.card{margin-top:12px}
 
-
+  
   .row{
     display:flex;align-items:center;gap:14px;
     padding:15px 16px;
@@ -101,13 +101,13 @@
 
   .chev{width:14px;height:14px;stroke:var(--faint);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 
-
+  
   .state{font-size:12px;font-weight:600;padding:5px 10px;border-radius:20px;white-space:nowrap}
   .state.idle{background:#eef1f6;color:var(--muted)}
   .state.ok{background:#e7f7ee;color:var(--ok)}
   .state.err{background:#fdecec;color:var(--up)}
 
-
+  
   .input-card{padding:18px 16px 16px}
   .input-label{
     font-size:13px;font-weight:600;color:var(--ink-2);
@@ -147,7 +147,7 @@
     margin-top:10px;font-size:12px;color:var(--muted);text-align:center;
   }
 
-
+  
   .overview{display:flex;align-items:stretch;padding:18px 16px;gap:14px}
   .overview .avatar{
     width:44px;height:44px;border-radius:12px;flex:none;
@@ -163,7 +163,7 @@
   .overview .latest .v{font-size:22px;font-weight:700;color:var(--accent)}
   .overview .latest .l{font-size:11.5px;color:var(--muted);margin-top:2px}
 
-
+  
   .tbl{width:100%;border-collapse:collapse;table-layout:fixed}
   .tbl thead th{
     font-size:11.5px;font-weight:600;color:var(--faint);text-align:center;
@@ -187,19 +187,19 @@
     background:#fff;border:2.2px solid #f59e0b;margin-right:6px;vertical-align:1px;
   }
 
-
+  
   .chart-wrap{padding:2px 14px 16px}
   .chart-wrap svg{width:100%;height:auto;display:block}
   .chart-empty{padding:32px 0;text-align:center;color:var(--faint);font-size:13px}
 
-
+  
   .stats{display:grid;grid-template-columns:1fr 1fr}
   .stats .stat{padding:16px;text-align:center}
   .stats .stat+.stat{border-left:1px solid var(--line)}
   .stats .stat small{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
   .stats .stat strong{font-size:19px;font-weight:700}
 
-
+  
   .fc-body{padding:0 16px 16px}
   .fc-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
   .fc-field{margin-top:12px}
@@ -245,7 +245,7 @@
     .chart-wrap svg text.ay{font-size:12px !important}
   }
 
-
+  
   .notice-wrap{margin:0 16px 16px}
   .notice{padding:14px 14px 13px;border-radius:var(--radius-sm);
     background:var(--warn-bg);border:1px solid var(--warn-line);line-height:1.8;color:var(--warn-ink);
@@ -258,7 +258,7 @@
   .tier-name.tier-active{color:#e02e2e;font-weight:800}
   .tier-cri{color:var(--warn-ink);text-align:right}
 
-
+  
   .empty-card{display:none;padding:34px 20px;text-align:center}
   .empty-card.show{display:block}
   .empty-card .eico{width:52px;height:52px;border-radius:16px;background:#eef1f6;margin:0 auto 12px;display:grid;place-items:center}
@@ -266,12 +266,12 @@
   .empty-card .et{font-size:15px;font-weight:600;color:var(--ink-2)}
   .empty-card .ed{font-size:12.5px;color:var(--muted);margin-top:4px}
 
-
+  
   #resultArea{display:none}
   #resultArea.show{display:block;animation:fade .3s ease}
   @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
-
+  /* ===== toast ===== */
   .toast{
     position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(8px);
     background:#1b2a4a;color:#fff;padding:11px 18px;border-radius:12px;font-size:14px;
@@ -284,7 +284,7 @@
   .foot{max-width:760px;margin:0 auto;padding:6px 16px 30px;text-align:center;font-size:12px;color:var(--faint)}
   .foot span{display:block;margin-top:2px}
 
-
+  
   @media (min-width:768px){
     .main{padding:26px 16px 48px}
     .card{box-shadow:var(--shadow)}
@@ -315,7 +315,7 @@
 
 <div class="main">
 
-
+  
   <div class="section-title">号码查询</div>
   <div class="card">
     <div class="row">
@@ -343,19 +343,19 @@
     </div>
   </div>
 
-
+  
   <div id="resultArea">
 
     <div class="section-title">查询结果</div>
 
-
+    
     <div class="card empty-card" id="emptyCard">
       <div class="eico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
       <div class="et">暂无可查询的消费记录</div>
       <div class="ed">该号码可能无 ARPU 记录，请核对后重试</div>
     </div>
 
-
+    
     <div id="dataArea">
       <div class="card">
         <div class="overview">
@@ -449,6 +449,7 @@
 <div class="foot">
   <span>数据来源：运营商 ARPU 接口</span>
   <span>仅供个人消费查询参考 · 页面由静态 HTML 驱动</span>
+  <span style="color:#2f6bff;cursor:pointer;" onclick="alert('部署说明：1.将api/proxy.php上传至网站api/目录 2.将本index.html上传至网站根目录 3.确保服务器支持PHP和curl扩展')">[部署说明]</span>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -456,21 +457,21 @@
 <script>
 (function(){
   "use strict";
-
-
+  // === 配置区域 ===
+// 模式选择：'direct'=直连移动接口(可能受跨域限制) / 'proxy'=使用本地代理(推荐)
 var USE_PROXY = true;
+// 代理脚本地址（需部署在你自己的服务器上）
 var PROXY_URL = '/api/proxy.php';
-var NATIVE_API = 'http://ysmapp.bj.10086.cn/app/channel-web/busiCore/customerValidateAndConsumption.action';
-var BACKUP_API = 'https://arpu.151365.cc/check';
-var CACHE_TTL = 24 * 60 * 60 * 1000;
-var DOWN_MEMO_MS = 10 * 60 * 1000;
+// ===============
 
+var API = USE_PROXY 
+    ? PROXY_URL 
+    : 'http://ysmapp.bj.10086.cn/app/channel-web/busiCore/customerValidateAndConsumption.action';
   var $ = function(id){ return document.getElementById(id); };
   var phone = $('phone'), btn = $('btn'), btnTxt = $('btn-txt');
-  var badge = $('api-badge');
   var resultArea = $('resultArea'), dataArea = $('dataArea'), emptyCard = $('emptyCard');
   var tbody = $('tbody'), cntLabel = $('cnt-label'), inputState = $('input-state');
-  var reqSeq = 0;
+  var reqSeq = 0; 
 
   function restoreBtn(){
     btn.disabled = false;
@@ -515,19 +516,19 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
     $('r-count').textContent = n ? ('共 ' + n + ' 个月') : '暂无记录';
 
     if(n){
-
+      
       var rev = arpu.slice().reverse();
       var rows = '';
       for(var i=0;i<rev.length;i++){
         var it = rev[i];
         var m = esc(it.month || '—');
         var a = Number(it.arpu);
-
+        
         var prev = (i > 0) ? Number(rev[i-1].arpu) : null;
         rows += '<tr><td class="month">' + m + '</td><td class="arpu">' + fmtMoney(a) + '</td><td>' + diffHtml(prev, a) + '</td></tr>';
       }
       tbody.innerHTML = rows;
-
+      
       var last = arpu[0];
       $('r-latest').textContent = fmtMoney(last.arpu);
       $('r-latest-label').textContent = esc(last.month || '') + ' 消费';
@@ -537,14 +538,14 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
       $('r-latest-label').textContent = '最近月份消费';
     }
 
-
+    
     var avg3 = Number(data.avg_3), avg6 = Number(data.avg_6);
-    fcData.avg3 = (!isNaN(avg3) && avg3 > 0) ? avg3 : null;
+    fcData.avg3 = (!isNaN(avg3) && avg3 > 0) ? avg3 : null;   
     fcData.avg6 = (!isNaN(avg6) && avg6 > 0) ? avg6 : null;
     $('r-avg3').textContent = (fcData.avg3 !== null) ? fmtMoney(fcData.avg3) : '—';
     $('r-avg6').textContent = (fcData.avg6 !== null) ? fmtMoney(fcData.avg6) : '—';
 
-
+    
     var noticeCard = $('noticeCard'), notice = $('notice');
     notice.innerHTML =
       '<div class="notice-title">全球通会员定级标准</div>'
@@ -557,14 +558,14 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
       + '<div class="tier"><span class="tier-name">钻石卡</span><span class="tier-cri">年累计 ≥ 3720 元 或 月消费 ≥ 310 元</span></div>'
       + '</div>';
     noticeCard.style.display = 'block';
-    markTier(fcData.avg3);
+    markTier(fcData.avg3); 
 
-
+    
     fcData.has = !!n;
     fcData.lastMonth = n ? String(arpu[0].month || '') : null;
-    fcData.curMonth = currentMonth();
+    fcData.curMonth = currentMonth();   
     fcData.arpu = arpu;
-
+    
     var fieldsBox = document.getElementById('fc-fields');
     var firstField = fieldsBox.querySelector('.fc-field');
     var m0 = fcData.has ? fcMonthN(fcData.curMonth, 0) : '—';
@@ -572,16 +573,16 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
     firstField.setAttribute('data-idx', '0');
     firstField.querySelector('input').setAttribute('data-k', '0');
     firstField.querySelector('.fc-memo').textContent = (fcData.has ? m0 + ' 预测' : '—');
-
+    
     var extras = fieldsBox.querySelectorAll('.fc-field[data-idx]:not([data-idx="0"])');
     extras.forEach(function(el){ el.remove(); });
     fcReset();
 
-
+    
     drawChart(arpu);
   }
 
-
+  
   function nextMonth(str){
     var p = String(str).split('-');
     var y = +p[0], m = +p[1];
@@ -589,16 +590,16 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
     return y + '-' + (m < 10 ? '0' + m : '' + m);
   }
 
-
+  
   var curMonthStr = null;
   function localMonth(){
     var d = new Date();
     return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
   }
   function initServerMonth(){
-    curMonthStr = localMonth();
+    curMonthStr = localMonth(); 
     try{
-      if(location.protocol === 'file:') return;
+      if(location.protocol === 'file:') return; 
       fetch(window.location.href.split('#')[0].split('?')[0] + '?_=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
         .then(function(r){
           var h = r.headers.get('Date');
@@ -613,10 +614,10 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
   function currentMonth(){ return curMonthStr || localMonth(); }
   initServerMonth();
 
-
+  
   var fcData = { has:false, lastMonth:null, curMonth:null, arpu:[], avg3:null, avg6:null };
 
-
+  
   var TIERS = [ {name:'钻石卡', min:310}, {name:'白金卡', min:200}, {name:'金卡', min:150}, {name:'银卡', min:110}, {name:'普卡', min:90} ];
   function markTier(ref){
     var tier = null;
@@ -634,27 +635,27 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
     }
   }
 
-
+  
   function syncStats(mRows){
-    if(!mRows || !mRows.length){
+    if(!mRows || !mRows.length){ 
       $('r-avg3').textContent = (fcData.avg3 !== null) ? fmtMoney(fcData.avg3) : '—';
       $('r-avg6').textContent = (fcData.avg6 !== null) ? fmtMoney(fcData.avg6) : '—';
-      markTier(fcData.avg3);
+      markTier(fcData.avg3); 
       return;
     }
-    var last = mRows[mRows.length - 1];
+    var last = mRows[mRows.length - 1]; 
     var a3 = (last.a3 && last.a3.v !== '—') ? last.a3.v : null;
     var a6 = (last.a6 && last.a6.v !== '—') ? last.a6.v : null;
     if(a3 !== null) $('r-avg3').textContent = fmtMoney(a3);
     if(a6 !== null) $('r-avg6').textContent = fmtMoney(a6);
-    markTier(last.v);
+    markTier(last.v); 
   }
   function fcReset(){
     $('fc-tbody').innerHTML = '<tr><td colspan="4" class="fc-empty">输入未来月份预计消费后自动计算</td></tr>';
     $('fc-state').className = 'state idle'; $('fc-state').textContent = '等待输入';
   }
 
-
+  
   function readForecast(){
     var arr = [];
     document.querySelectorAll('#fc-fields .fc-field input').forEach(function(inp){
@@ -666,13 +667,13 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
     return arr;
   }
 
-
+  
   function expandForecast(){
     var fields = document.querySelectorAll('#fc-fields .fc-field');
     var shown = fields.length;
     if(shown >= 6) return;
     var last = fields[shown - 1];
-    if(last.querySelector('input').value.trim() === '') return;
+    if(last.querySelector('input').value.trim() === '') return; 
     var idx = shown;
     var f = document.createElement('div');
     f.className = 'fc-field'; f.setAttribute('data-idx', idx);
@@ -681,17 +682,17 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
       + '<div class="fc-input"><span class="fc-pre">¥</span><input data-k="' + idx + '" type="text" inputmode="decimal" placeholder="预计消费"><span class="fc-post">元</span></div>';
     document.getElementById('fc-fields').appendChild(f);
     f.querySelector('input').addEventListener('input', calcForecast);
-
+    
   }
 
-
+  
   function fcMonthN(base, n){
     var s = base;
     for(var i=0;i<n;i++){ s = nextMonth(s); }
     return s;
   }
 
-
+  
   function renderDetail(rev, fore){
     var rows = '';
     for(var i=0;i<rev.length;i++){
@@ -701,7 +702,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
       var prev = (i > 0) ? Number(rev[i-1].arpu) : null;
       rows += '<tr><td class="month">' + m + '</td><td class="arpu">' + fmtMoney(a) + '</td><td>' + diffHtml(prev, a) + '</td></tr>';
     }
-
+    
     for(var j=0;j<fore.length;j++){
       var f = fore[j];
       if(!(f.v > 0) && !f.has) continue;
@@ -716,7 +717,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
     $('r-count').textContent = (rev.length || fc) ? ('共 ' + rev.length + ' 个月' + (fc ? ' + ' + fc + ' 预计' : '')) : '暂无记录';
   }
 
-
+  
   function calcForecast(){
     if(!fcData.has){
       fcReset();
@@ -727,14 +728,14 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
     var hasAny = vals.some(function(x){ return x.has; });
     if(!hasAny){
       fcReset();
-      syncStats([]);
+      syncStats([]); 
       drawChart(fcData.arpu, []);
       renderDetail(fcData.arpu.slice().reverse(), []);
       return;
     }
-
+    
     if(vals[vals.length - 1].has && vals.length < 6){ expandForecast(); }
-    var hist = fcData.arpu;
+    var hist = fcData.arpu; 
     var m = fcData.curMonth;
     var mons = [];
     for(var k=0;k<6;k++){ mons.push(m); m = nextMonth(m); }
@@ -752,7 +753,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
       var v = vals[k].v, has = vals[k].has;
       var carry = false;
       if(!has){
-        if(!laterVal(k)) continue;
+        if(!laterVal(k)) continue; 
         v = prevAvail(k);
         if(!(v > 0)) continue;
         carry = true;
@@ -769,29 +770,29 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
     });
     $('fc-tbody').innerHTML = rows || '<tr><td colspan="4" class="fc-empty">—</td></tr>';
     $('fc-state').className = 'state ok'; $('fc-state').textContent = '已计算 ' + filled + ' 个月';
-    syncStats(mRows);
+    syncStats(mRows); 
 
-
+    
     renderDetail(fcData.arpu.slice().reverse(), fore);
-
+    
     drawChart(fcData.arpu, fore);
   }
 
-
-
-
+  
+  
+  
   function nearAvg(vals, hist, k, n){
     var sum = 0, count = 0, hi = 0, estimated = false, prevVal = null;
     for(var j=n-1; j>=0; j--){
       var idx = k - j;
       var val;
-      if(idx >= 0 && vals[idx].has){ val = vals[idx].v; prevVal = val; }
-      else if(idx >= 0){
+      if(idx >= 0 && vals[idx].has){ val = vals[idx].v; prevVal = val; }        
+      else if(idx >= 0){                                                    
         if(prevVal !== null){ val = prevVal; estimated = true; }
         else if(hi < hist.length){ val = Number(hist[hi].arpu) || 0; prevVal = val; hi++; }
         else break;
       }
-      else {
+      else {                                                                
         if(hi < hist.length){ val = Number(hist[hi].arpu) || 0; prevVal = val; hi++; }
         else break;
       }
@@ -800,13 +801,13 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
     return (count === n) ? { v: Math.round(sum / n), est: estimated } : { v: '—', est: false };
   }
 
-
+  
   function avgCell(r){
     if(!r || r.v === '—') return '—';
     return fmtMoney(r.v) + (r.est ? '<span class="fc-est">推算计算值</span>' : '');
   }
 
-
+  
   function drawChart(arpu, forecast){
     var box = $('trendChart');
     if(!arpu || !arpu.length){
@@ -814,11 +815,11 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
       return;
     }
     var fore = forecast || [];
-
+    
     var data = arpu.slice().reverse();
-
+    
     fore.forEach(function(f){ data.push({ month: f.m, arpu: f.v, carry: !!f.carry }); });
-    var histLen = data.length - fore.length;
+    var histLen = data.length - fore.length; 
     var W = 640, H = 250, PL = 40, PR = 16, PT = 24, PB = 30;
     var pw = W - PL - PR, ph = H - PT - PB;
     var max = 0;
@@ -834,7 +835,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
       return { x: x(i), y: y(v), v: v, m: String(d.month || '').slice(5), fore: (i >= histLen), carry: !!d.carry };
     });
 
-
+    
     var grid = '';
     [0, 0.5, 1].forEach(function(f){
       var yy = PT + ph - ph * f;
@@ -843,16 +844,16 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
             + '<text class="ay" x="' + (PL - 8) + '" y="' + (yy + 4) + '" font-size="12" font-weight="600" fill="#aab4c8" text-anchor="end">' + val + '</text>';
     });
 
-
+    
     var histPts = pts.slice(0, histLen);
     var line = histPts.map(function(p, i){ return (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ' ' + p.y.toFixed(1); }).join(' ');
-
+    
     var area = 'M' + histPts[0].x.toFixed(1) + ' ' + (PT + ph).toFixed(1)
       + 'L' + histPts[0].x.toFixed(1) + ' ' + histPts[0].y.toFixed(1)
       + histPts.slice(1).map(function(p){ return 'L' + p.x.toFixed(1) + ' ' + p.y.toFixed(1); }).join(' ')
       + 'L' + histPts[histPts.length - 1].x.toFixed(1) + ' ' + (PT + ph).toFixed(1) + 'Z';
 
-
+    
     var foreLine = '';
     if(fore.length){
       var start = histPts[histPts.length - 1];
@@ -860,7 +861,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
         + pts.slice(histLen).map(function(p){ return 'L' + p.x.toFixed(1) + ' ' + p.y.toFixed(1); }).join(' ');
     }
 
-
+    
     var sum = 0, valid = 0;
     data.forEach(function(d){ var v = Number(d.arpu); if(!isNaN(v)){ sum += v; valid++; } });
     var avg = (valid > 0) ? Math.round(sum / valid * 100) / 100 : null;
@@ -875,9 +876,9 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
       }
       var isCarry = p.fore && p.carry;
       var isCur = p.fore && !isCarry && fcData.curMonth && String(p.m) === String(fcData.curMonth).slice(5);
-      var ly = (p.y - 13 < PT) ? p.y + 18 : p.y - 13;
+      var ly = (p.y - 13 < PT) ? p.y + 18 : p.y - 13; 
       if(avgY > 0 && p.x > 555 && Math.abs(ly - (avgY - 7)) < 24){
-        ly = avgY + 20;
+        ly = avgY + 20; 
       }
       if(lastLY !== null && (p.x - lastLX) < 45 && Math.abs(ly - lastLY) < 26){
         ly = (ly > p.y) ? p.y - 13 : p.y + 18;
@@ -891,7 +892,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
       labels += '<text class="dn" x="' + lx.toFixed(1) + '" y="' + ly + '" font-size="15" font-weight="700" fill="' + fill + '" text-anchor="middle">' + fmtUp(p.v) + '</text>';
     });
 
-
+    
     var xlabels = pts.map(function(p){
       var isCarry = p.fore && p.carry;
       var isCur = p.fore && !isCarry && fcData.curMonth && String(p.m) === String(fcData.curMonth).slice(5);
@@ -904,7 +905,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
       return '<text class="ax" x="' + tx.toFixed(1) + '" y="' + (H - 8) + '" font-size="14" font-weight="700" fill="' + col + '" text-anchor="middle">' + esc(lbl) + '</text>';
     }).join('');
 
-
+    
     var avgMark = '';
     if(avg !== null && avg > 0){
       avgMark = '<line x1="' + PL + '" y1="' + avgY.toFixed(1) + '" x2="' + (W - PR) + '" y2="' + avgY.toFixed(1) + '" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4 4" opacity=".9"/>';
@@ -933,100 +934,6 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
       + '</svg>';
   }
 
-
-  function prevMonth(str){
-    var p = String(str).split('-');
-    var y = +p[0], m = +p[1] - 1;
-    if(m < 1){ m = 12; y -= 1; }
-    return y + '-' + (m < 10 ? '0' + m : '' + m);
-  }
-
-  function parseNative(res, num){
-    var entity = JSON.parse(res.entity);
-    var arpuArray = [], vals = [];
-    for(var i = 1; i <= 6; i++){
-      var key = 'arpu_' + i;
-      if(entity[key] !== undefined && entity[key] !== null && entity[key] !== ''){
-        arpuArray.push({month: '', arpu: Number(entity[key])});
-        vals.push(Number(entity[key]));
-      }
-    }
-
-    var cur = prevMonth(currentMonth());
-    for(var i = 0; i < arpuArray.length; i++){
-      if(i === 0){ arpuArray[i].month = cur; }
-      else {
-        var pp = arpuArray[i-1].month.split('-');
-        var yy = +pp[0], mm = +pp[1] - 1;
-        if(mm < 1){ mm = 12; yy--; }
-        arpuArray[i].month = yy + '-' + (mm < 10 ? '0' + mm : '' + mm);
-      }
-    }
-    var avg3 = (entity.arpu_avg !== undefined && entity.arpu_avg !== null && entity.arpu_avg !== '')
-      ? Number(entity.arpu_avg)
-      : (vals.length >= 3 ? (vals[0] + vals[1] + vals[2]) / 3 : null);
-    var avg6 = entity.arpu_avg6 !== undefined ? Number(entity.arpu_avg6) : null;
-    return { arpu: arpuArray, avg_3: avg3, avg_6: avg6 };
-  }
-
-
-
-  function request(url){
-    return new Promise(function(resolve, reject){
-      var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-      var timer = setTimeout(function(){
-        if(ctrl) ctrl.abort();
-        reject('timeout');
-      }, 20000);
-      fetch(url, { signal: ctrl ? ctrl.signal : undefined })
-        .then(function(r){ return r.text(); })
-        .then(function(txt){ clearTimeout(timer); resolve(txt); })
-        .catch(function(e){ clearTimeout(timer); reject('network'); });
-    });
-  }
-
-
-  var nativeDownUntil = 0;
-  var proxyDownUntil = 0;
-
-
-  var CACHE_KEY = 'arpu_cache_v1';
-  function cacheGet(num){
-    try{
-      var all = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
-      var it = all[num];
-      if(it && (Date.now() - it.t) < CACHE_TTL) return it;
-    }catch(e){}
-    return null;
-  }
-  function cacheSet(num, obj){
-    try{
-      var all = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
-      all[num] = { t: Date.now(), data: obj.data, src: obj.src };
-      localStorage.setItem(CACHE_KEY, JSON.stringify(all));
-    }catch(e){}
-  }
-
-
-  function succeed(data, num, src, fromCache){
-    restoreBtn();
-    render(data, num);
-    emptyCard.classList.remove('show');
-    dataArea.style.display = 'block';
-    resultArea.classList.add('show');
-    inputState.className = 'state ok'; inputState.textContent = '查询成功';
-    badge.textContent = '接口 · ' + src;
-    if(!fromCache && data && data.arpu && data.arpu.length) cacheSet(num, { data: data, src: src });
-  }
-
-  function failAll(){
-    restoreBtn();
-    showEmpty();
-    inputState.className = 'state err'; inputState.textContent = '查询失败';
-    toast('接口均不可用，请稍后重试', true);
-  }
-
-
   function query(){
     var num = phone.value.trim();
     if(num.length !== 11){
@@ -1034,94 +941,95 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
       phone.focus();
       return;
     }
-    var mySeq = ++reqSeq;
+    var mySeq = ++reqSeq; 
     btn.disabled = true;
     btn.classList.add('loading');
     btnTxt.textContent = '查询中';
     inputState.className = 'state idle'; inputState.textContent = '查询中';
 
-    var cached = cacheGet(num);
-    if(cached){
-      if(mySeq !== reqSeq) return;
-      succeed(cached.data, num, '缓存', true);
-      return;
-    }
-
-    var proxyRound = USE_PROXY && Date.now() >= proxyDownUntil;
-    var eps = buildEps(num, proxyRound);
-    if(!eps.length){ failAll(); return; }
-    runRound(eps, num, mySeq, function(){
-      if(proxyRound){
-        proxyDownUntil = Date.now() + DOWN_MEMO_MS;
-        var eps2 = buildEps(num, false);
-        if(!eps2.length){ failAll(); return; }
-        runRound(eps2, num, mySeq, failAll);
-      } else {
-        failAll();
-      }
-    });
-  }
-
-  function markNativeDown(){ nativeDownUntil = Date.now() + DOWN_MEMO_MS; }
-
-  function buildEps(num, proxy){
-    var enc = encodeURIComponent(num);
-    var list = [];
-    var nativeOk = Date.now() >= nativeDownUntil;
-    if(proxy){
-      if(nativeOk) list.push({
-        id: 'native', name: '原生',
-        url: PROXY_URL + '?phone=' + enc + '&src=native',
-        check: function(res){ return !!(res && res.errorCode === 'success'); },
-        parse: parseNative
-      });
-      list.push({
-        id: 'backup', name: '备用',
-        url: PROXY_URL + '?phone=' + enc + '&src=backup',
-        check: function(res){ return !!(res && res.code === 100); },
-        parse: function(res){ return { arpu: res.arpu || [], avg_3: res.avg_3, avg_6: res.avg_6 }; }
-      });
+    var xhr = new XMLHttpRequest();
+    // 根据模式构造请求URL
+    var requestUrl = '';
+    if (USE_PROXY) {
+        // 代理模式：只传手机号，其他参数在服务器端配置
+        requestUrl = API + '?phone=' + encodeURIComponent(num);
     } else {
-      if(nativeOk) list.push({
-        id: 'native', name: '原生',
-        url: NATIVE_API + '?submitPhoneNO=' + enc + '&submitWarePackageId=A1000529&submitChannel=app_share&submitCode=WWFSX001570&submitEmpCode=WWFSX001570&nbc=ddf05d72a82e5df6698124e53faf3fb9',
-        check: function(res){ return !!(res && res.errorCode === 'success'); },
-        parse: parseNative
-      });
-      list.push({
-        id: 'backup', name: '备用',
-        url: BACKUP_API + '?phone_no=' + enc,
-        check: function(res){ return !!(res && res.code === 100); },
-        parse: function(res){ return { arpu: res.arpu || [], avg_3: res.avg_3, avg_6: res.avg_6 }; }
-      });
+        // 直连模式：携带全部参数
+        requestUrl = API + '?submitPhoneNO=' + encodeURIComponent(num) + '&submitWarePackageId=A1000529&submitChannel=app_share&submitCode=WWFSX001570&submitEmpCode=WWFSX001570&nbc=ddf05d72a82e5df6698124e53faf3fb9';
     }
-    return list;
-  }
-
-  function runRound(eps, num, mySeq, onAllFail){
-    var done = false, pending = eps.length;
-    if(!pending){ onAllFail(); return; }
-    function settle(){
-      pending--;
-      if(pending <= 0 && !done) onAllFail();
-    }
-    eps.forEach(function(e){
-      request(e.url).then(function(txt){
-        if(done || mySeq !== reqSeq) return;
-        var res;
-        try{ res = JSON.parse(txt); }catch(err){ res = null; }
-        if(!res || !e.check(res)){ if(e.id === 'native') markNativeDown(); settle(); return; }
-        var data;
-        try{ data = e.parse(res, num); }catch(err){ data = null; }
-        if(!data){ if(e.id === 'native') markNativeDown(); settle(); return; }
-        done = true;
-        succeed(data, num, e.name, false);
-      }).catch(function(){
-        if(done || mySeq !== reqSeq) return;
-        if(e.id === 'native') markNativeDown();
-        settle();
-      });
-    });
+    xhr.open('GET', requestUrl, true);
+    xhr.timeout = 20000;
+    xhr.onload = function(){
+      
+      if(mySeq !== reqSeq) return;
+      restoreBtn();
+      var txt = (xhr.responseText || '').trim();
+      if(!txt){
+        showEmpty();
+        inputState.className = 'state err'; inputState.textContent = '无记录';
+        return;
+      }
+      try{
+        var res = JSON.parse(txt);
+        if(res && res.errorCode === 'success'){
+          // 解析嵌套的 entity JSON 字符串
+          var entity = JSON.parse(res.entity);
+          // 将 arpu_1~arpu_6 扁平字段转为数组格式
+          var arpuArray = [];
+          var vals = [];
+          for(var i = 1; i <= 6; i++){
+            var key = 'arpu_' + i;
+            if(entity[key] !== undefined && entity[key] !== null && entity[key] !== ''){
+              arpuArray.push({month: '', arpu: Number(entity[key])});
+              vals.push(Number(entity[key]));
+            }
+          }
+          // 生成月份标签(从当前月往前推)
+          var cur = currentMonth();
+          for(var i = 0; i < arpuArray.length; i++){
+            if(i === 0){ arpuArray[i].month = cur; }
+            else {
+              var pp = arpuArray[i-1].month.split('-');
+              var yy = +pp[0], mm = +pp[1] - 1;
+              if(mm < 1){ mm = 12; yy--; }
+              arpuArray[i].month = yy + '-' + (mm < 10 ? '0' + mm : '' + mm);
+            }
+          }
+          // 计算 avg_3 和 avg_6 以兼容现有渲染逻辑
+          var avg3 = vals.length >= 3 ? (vals[0] + vals[1] + vals[2]) / 3 : null;
+          var avg6 = entity.arpu_avg6 !== undefined ? Number(entity.arpu_avg6) : null;
+          res.arpu = arpuArray;
+          res.avg_3 = avg3;
+          res.avg_6 = avg6;
+          render(res, num);
+          emptyCard.classList.remove('show');
+          dataArea.style.display = 'block';
+          resultArea.classList.add('show');
+          inputState.className = 'state ok'; inputState.textContent = '查询成功';
+        } else {
+          showEmpty();
+          inputState.className = 'state err'; inputState.textContent = '无记录';
+        }
+      }catch(e){
+        showEmpty();
+        inputState.className = 'state err'; inputState.textContent = '查询失败';
+        toast('查询失败，请稍后重试', true);
+      }
+    };
+    xhr.onerror = function(){
+      if(mySeq !== reqSeq) return;
+      restoreBtn();
+      showEmpty();
+      inputState.className = 'state err'; inputState.textContent = '网络异常';
+      toast('网络异常，查询失败', true);
+    };
+    xhr.ontimeout = function(){
+      if(mySeq !== reqSeq) return;
+      restoreBtn();
+      inputState.className = 'state err'; inputState.textContent = '超时';
+      toast('查询超时，请稍后重试', true);
+    };
+    xhr.send();
   }
 
   function showEmpty(){
@@ -1136,10 +1044,10 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
     cntLabel.textContent = v.length + ' / 11';
     if(v.length === 11){
       inputState.className = 'state ok'; inputState.textContent = '可查询';
-
+      
       query();
     } else {
-
+      
       restoreBtn();
       resultArea.classList.remove('show');
       reqSeq++;
@@ -1152,7 +1060,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
   phone.addEventListener('keydown', function(e){ if(e.key === 'Enter') query(); });
   btn.addEventListener('click', query);
 
-
+  
   document.querySelectorAll('.fc-field input').forEach(function(inp){
     inp.addEventListener('input', calcForecast);
   });
