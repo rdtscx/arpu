@@ -38,7 +38,7 @@
     line-height:1.5;
   }
 
-  
+
   .appbar{
     background:var(--card);
     border-bottom:1px solid var(--line);
@@ -64,7 +64,7 @@
     background:var(--accent-soft);border-radius:20px;padding:4px 10px;flex:none;
   }
 
-  
+
   .main{max-width:760px;margin:0 auto;padding:18px 16px 40px}
   .section-title{
     font-size:12px;font-weight:600;color:var(--muted);
@@ -72,7 +72,7 @@
   }
   .section-title:first-child{margin-top:2px}
 
-  
+
   .card{
     background:var(--card);border-radius:var(--radius);
     box-shadow:var(--shadow-sm);
@@ -81,7 +81,7 @@
   }
   .card+.card{margin-top:12px}
 
-  
+
   .row{
     display:flex;align-items:center;gap:14px;
     padding:15px 16px;
@@ -101,13 +101,13 @@
 
   .chev{width:14px;height:14px;stroke:var(--faint);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 
-  
+
   .state{font-size:12px;font-weight:600;padding:5px 10px;border-radius:20px;white-space:nowrap}
   .state.idle{background:#eef1f6;color:var(--muted)}
   .state.ok{background:#e7f7ee;color:var(--ok)}
   .state.err{background:#fdecec;color:var(--up)}
 
-  
+
   .input-card{padding:18px 16px 16px}
   .input-label{
     font-size:13px;font-weight:600;color:var(--ink-2);
@@ -147,7 +147,7 @@
     margin-top:10px;font-size:12px;color:var(--muted);text-align:center;
   }
 
-  
+
   .overview{display:flex;align-items:stretch;padding:18px 16px;gap:14px}
   .overview .avatar{
     width:44px;height:44px;border-radius:12px;flex:none;
@@ -163,7 +163,7 @@
   .overview .latest .v{font-size:22px;font-weight:700;color:var(--accent)}
   .overview .latest .l{font-size:11.5px;color:var(--muted);margin-top:2px}
 
-  
+
   .tbl{width:100%;border-collapse:collapse;table-layout:fixed}
   .tbl thead th{
     font-size:11.5px;font-weight:600;color:var(--faint);text-align:center;
@@ -187,19 +187,19 @@
     background:#fff;border:2.2px solid #f59e0b;margin-right:6px;vertical-align:1px;
   }
 
-  
+
   .chart-wrap{padding:2px 14px 16px}
   .chart-wrap svg{width:100%;height:auto;display:block}
   .chart-empty{padding:32px 0;text-align:center;color:var(--faint);font-size:13px}
 
-  
+
   .stats{display:grid;grid-template-columns:1fr 1fr}
   .stats .stat{padding:16px;text-align:center}
   .stats .stat+.stat{border-left:1px solid var(--line)}
   .stats .stat small{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
   .stats .stat strong{font-size:19px;font-weight:700}
 
-  
+
   .fc-body{padding:0 16px 16px}
   .fc-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
   .fc-field{margin-top:12px}
@@ -245,7 +245,7 @@
     .chart-wrap svg text.ay{font-size:12px !important}
   }
 
-  
+
   .notice-wrap{margin:0 16px 16px}
   .notice{padding:14px 14px 13px;border-radius:var(--radius-sm);
     background:var(--warn-bg);border:1px solid var(--warn-line);line-height:1.8;color:var(--warn-ink);
@@ -258,7 +258,7 @@
   .tier-name.tier-active{color:#e02e2e;font-weight:800}
   .tier-cri{color:var(--warn-ink);text-align:right}
 
-  
+
   .empty-card{display:none;padding:34px 20px;text-align:center}
   .empty-card.show{display:block}
   .empty-card .eico{width:52px;height:52px;border-radius:16px;background:#eef1f6;margin:0 auto 12px;display:grid;place-items:center}
@@ -266,12 +266,12 @@
   .empty-card .et{font-size:15px;font-weight:600;color:var(--ink-2)}
   .empty-card .ed{font-size:12.5px;color:var(--muted);margin-top:4px}
 
-  
+
   #resultArea{display:none}
   #resultArea.show{display:block;animation:fade .3s ease}
   @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
-  /* ===== toast ===== */
+
   .toast{
     position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(8px);
     background:#1b2a4a;color:#fff;padding:11px 18px;border-radius:12px;font-size:14px;
@@ -284,7 +284,7 @@
   .foot{max-width:760px;margin:0 auto;padding:6px 16px 30px;text-align:center;font-size:12px;color:var(--faint)}
   .foot span{display:block;margin-top:2px}
 
-  
+
   @media (min-width:768px){
     .main{padding:26px 16px 48px}
     .card{box-shadow:var(--shadow)}
@@ -315,7 +315,7 @@
 
 <div class="main">
 
-  
+
   <div class="section-title">号码查询</div>
   <div class="card">
     <div class="row">
@@ -343,19 +343,19 @@
     </div>
   </div>
 
-  
+
   <div id="resultArea">
 
     <div class="section-title">查询结果</div>
 
-    
+
     <div class="card empty-card" id="emptyCard">
       <div class="eico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
       <div class="et">暂无可查询的消费记录</div>
       <div class="ed">该号码可能无 ARPU 记录，请核对后重试</div>
     </div>
 
-    
+
     <div id="dataArea">
       <div class="card">
         <div class="overview">
@@ -449,7 +449,6 @@
 <div class="foot">
   <span>数据来源：运营商 ARPU 接口</span>
   <span>仅供个人消费查询参考 · 页面由静态 HTML 驱动</span>
-  <span style="color:#2f6bff;cursor:pointer;" onclick="alert('部署说明：1.将api/proxy.php上传至网站api/目录 2.将本index.html上传至网站根目录 3.确保服务器支持PHP和curl扩展')">[部署说明]</span>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -457,21 +456,21 @@
 <script>
 (function(){
   "use strict";
-  // === 配置区域 ===
-// 查询策略：并行抢答，优先北京移动原生接口；失效自动回退备用接口
-var USE_PROXY = true;             // 是否全部走本地代理(规避跨域，推荐)
-var PROXY_URL = '/api/proxy.php'; // 代理脚本地址（需部署在你自己的服务器上）
-var NATIVE_API = 'http://ysmapp.bj.10086.cn/app/channel-web/busiCore/customerValidateAndConsumption.action'; // 移动原生接口
-var BACKUP_API = 'https://arpu.151365.cc/check'; // 备用接口
-var CACHE_TTL = 24 * 60 * 60 * 1000; // 同号结果缓存有效期(ms)
-var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时长(ms)
-// ===============
+
+
+var USE_PROXY = true;
+var PROXY_URL = '/api/proxy.php';
+var NATIVE_API = 'http://ysmapp.bj.10086.cn/app/channel-web/busiCore/customerValidateAndConsumption.action';
+var BACKUP_API = 'https://arpu.151365.cc/check';
+var CACHE_TTL = 24 * 60 * 60 * 1000;
+var DOWN_MEMO_MS = 10 * 60 * 1000;
+
   var $ = function(id){ return document.getElementById(id); };
   var phone = $('phone'), btn = $('btn'), btnTxt = $('btn-txt');
   var badge = $('api-badge');
   var resultArea = $('resultArea'), dataArea = $('dataArea'), emptyCard = $('emptyCard');
   var tbody = $('tbody'), cntLabel = $('cnt-label'), inputState = $('input-state');
-  var reqSeq = 0; 
+  var reqSeq = 0;
 
   function restoreBtn(){
     btn.disabled = false;
@@ -516,19 +515,19 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
     $('r-count').textContent = n ? ('共 ' + n + ' 个月') : '暂无记录';
 
     if(n){
-      
+
       var rev = arpu.slice().reverse();
       var rows = '';
       for(var i=0;i<rev.length;i++){
         var it = rev[i];
         var m = esc(it.month || '—');
         var a = Number(it.arpu);
-        
+
         var prev = (i > 0) ? Number(rev[i-1].arpu) : null;
         rows += '<tr><td class="month">' + m + '</td><td class="arpu">' + fmtMoney(a) + '</td><td>' + diffHtml(prev, a) + '</td></tr>';
       }
       tbody.innerHTML = rows;
-      
+
       var last = arpu[0];
       $('r-latest').textContent = fmtMoney(last.arpu);
       $('r-latest-label').textContent = esc(last.month || '') + ' 消费';
@@ -538,14 +537,14 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
       $('r-latest-label').textContent = '最近月份消费';
     }
 
-    
+
     var avg3 = Number(data.avg_3), avg6 = Number(data.avg_6);
-    fcData.avg3 = (!isNaN(avg3) && avg3 > 0) ? avg3 : null;   
+    fcData.avg3 = (!isNaN(avg3) && avg3 > 0) ? avg3 : null;
     fcData.avg6 = (!isNaN(avg6) && avg6 > 0) ? avg6 : null;
     $('r-avg3').textContent = (fcData.avg3 !== null) ? fmtMoney(fcData.avg3) : '—';
     $('r-avg6').textContent = (fcData.avg6 !== null) ? fmtMoney(fcData.avg6) : '—';
 
-    
+
     var noticeCard = $('noticeCard'), notice = $('notice');
     notice.innerHTML =
       '<div class="notice-title">全球通会员定级标准</div>'
@@ -558,14 +557,14 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
       + '<div class="tier"><span class="tier-name">钻石卡</span><span class="tier-cri">年累计 ≥ 3720 元 或 月消费 ≥ 310 元</span></div>'
       + '</div>';
     noticeCard.style.display = 'block';
-    markTier(fcData.avg3); 
+    markTier(fcData.avg3);
 
-    
+
     fcData.has = !!n;
     fcData.lastMonth = n ? String(arpu[0].month || '') : null;
-    fcData.curMonth = currentMonth();   
+    fcData.curMonth = currentMonth();
     fcData.arpu = arpu;
-    
+
     var fieldsBox = document.getElementById('fc-fields');
     var firstField = fieldsBox.querySelector('.fc-field');
     var m0 = fcData.has ? fcMonthN(fcData.curMonth, 0) : '—';
@@ -573,16 +572,16 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
     firstField.setAttribute('data-idx', '0');
     firstField.querySelector('input').setAttribute('data-k', '0');
     firstField.querySelector('.fc-memo').textContent = (fcData.has ? m0 + ' 预测' : '—');
-    
+
     var extras = fieldsBox.querySelectorAll('.fc-field[data-idx]:not([data-idx="0"])');
     extras.forEach(function(el){ el.remove(); });
     fcReset();
 
-    
+
     drawChart(arpu);
   }
 
-  
+
   function nextMonth(str){
     var p = String(str).split('-');
     var y = +p[0], m = +p[1];
@@ -590,16 +589,16 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
     return y + '-' + (m < 10 ? '0' + m : '' + m);
   }
 
-  
+
   var curMonthStr = null;
   function localMonth(){
     var d = new Date();
     return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
   }
   function initServerMonth(){
-    curMonthStr = localMonth(); 
+    curMonthStr = localMonth();
     try{
-      if(location.protocol === 'file:') return; 
+      if(location.protocol === 'file:') return;
       fetch(window.location.href.split('#')[0].split('?')[0] + '?_=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
         .then(function(r){
           var h = r.headers.get('Date');
@@ -614,10 +613,10 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
   function currentMonth(){ return curMonthStr || localMonth(); }
   initServerMonth();
 
-  
+
   var fcData = { has:false, lastMonth:null, curMonth:null, arpu:[], avg3:null, avg6:null };
 
-  
+
   var TIERS = [ {name:'钻石卡', min:310}, {name:'白金卡', min:200}, {name:'金卡', min:150}, {name:'银卡', min:110}, {name:'普卡', min:90} ];
   function markTier(ref){
     var tier = null;
@@ -635,27 +634,27 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
     }
   }
 
-  
+
   function syncStats(mRows){
-    if(!mRows || !mRows.length){ 
+    if(!mRows || !mRows.length){
       $('r-avg3').textContent = (fcData.avg3 !== null) ? fmtMoney(fcData.avg3) : '—';
       $('r-avg6').textContent = (fcData.avg6 !== null) ? fmtMoney(fcData.avg6) : '—';
-      markTier(fcData.avg3); 
+      markTier(fcData.avg3);
       return;
     }
-    var last = mRows[mRows.length - 1]; 
+    var last = mRows[mRows.length - 1];
     var a3 = (last.a3 && last.a3.v !== '—') ? last.a3.v : null;
     var a6 = (last.a6 && last.a6.v !== '—') ? last.a6.v : null;
     if(a3 !== null) $('r-avg3').textContent = fmtMoney(a3);
     if(a6 !== null) $('r-avg6').textContent = fmtMoney(a6);
-    markTier(last.v); 
+    markTier(last.v);
   }
   function fcReset(){
     $('fc-tbody').innerHTML = '<tr><td colspan="4" class="fc-empty">输入未来月份预计消费后自动计算</td></tr>';
     $('fc-state').className = 'state idle'; $('fc-state').textContent = '等待输入';
   }
 
-  
+
   function readForecast(){
     var arr = [];
     document.querySelectorAll('#fc-fields .fc-field input').forEach(function(inp){
@@ -667,13 +666,13 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
     return arr;
   }
 
-  
+
   function expandForecast(){
     var fields = document.querySelectorAll('#fc-fields .fc-field');
     var shown = fields.length;
     if(shown >= 6) return;
     var last = fields[shown - 1];
-    if(last.querySelector('input').value.trim() === '') return; 
+    if(last.querySelector('input').value.trim() === '') return;
     var idx = shown;
     var f = document.createElement('div');
     f.className = 'fc-field'; f.setAttribute('data-idx', idx);
@@ -682,17 +681,17 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
       + '<div class="fc-input"><span class="fc-pre">¥</span><input data-k="' + idx + '" type="text" inputmode="decimal" placeholder="预计消费"><span class="fc-post">元</span></div>';
     document.getElementById('fc-fields').appendChild(f);
     f.querySelector('input').addEventListener('input', calcForecast);
-    
+
   }
 
-  
+
   function fcMonthN(base, n){
     var s = base;
     for(var i=0;i<n;i++){ s = nextMonth(s); }
     return s;
   }
 
-  
+
   function renderDetail(rev, fore){
     var rows = '';
     for(var i=0;i<rev.length;i++){
@@ -702,7 +701,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
       var prev = (i > 0) ? Number(rev[i-1].arpu) : null;
       rows += '<tr><td class="month">' + m + '</td><td class="arpu">' + fmtMoney(a) + '</td><td>' + diffHtml(prev, a) + '</td></tr>';
     }
-    
+
     for(var j=0;j<fore.length;j++){
       var f = fore[j];
       if(!(f.v > 0) && !f.has) continue;
@@ -717,7 +716,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
     $('r-count').textContent = (rev.length || fc) ? ('共 ' + rev.length + ' 个月' + (fc ? ' + ' + fc + ' 预计' : '')) : '暂无记录';
   }
 
-  
+
   function calcForecast(){
     if(!fcData.has){
       fcReset();
@@ -728,14 +727,14 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
     var hasAny = vals.some(function(x){ return x.has; });
     if(!hasAny){
       fcReset();
-      syncStats([]); 
+      syncStats([]);
       drawChart(fcData.arpu, []);
       renderDetail(fcData.arpu.slice().reverse(), []);
       return;
     }
-    
+
     if(vals[vals.length - 1].has && vals.length < 6){ expandForecast(); }
-    var hist = fcData.arpu; 
+    var hist = fcData.arpu;
     var m = fcData.curMonth;
     var mons = [];
     for(var k=0;k<6;k++){ mons.push(m); m = nextMonth(m); }
@@ -753,7 +752,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
       var v = vals[k].v, has = vals[k].has;
       var carry = false;
       if(!has){
-        if(!laterVal(k)) continue; 
+        if(!laterVal(k)) continue;
         v = prevAvail(k);
         if(!(v > 0)) continue;
         carry = true;
@@ -770,29 +769,29 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
     });
     $('fc-tbody').innerHTML = rows || '<tr><td colspan="4" class="fc-empty">—</td></tr>';
     $('fc-state').className = 'state ok'; $('fc-state').textContent = '已计算 ' + filled + ' 个月';
-    syncStats(mRows); 
+    syncStats(mRows);
 
-    
+
     renderDetail(fcData.arpu.slice().reverse(), fore);
-    
+
     drawChart(fcData.arpu, fore);
   }
 
-  
-  
-  
+
+
+
   function nearAvg(vals, hist, k, n){
     var sum = 0, count = 0, hi = 0, estimated = false, prevVal = null;
     for(var j=n-1; j>=0; j--){
       var idx = k - j;
       var val;
-      if(idx >= 0 && vals[idx].has){ val = vals[idx].v; prevVal = val; }        
-      else if(idx >= 0){                                                    
+      if(idx >= 0 && vals[idx].has){ val = vals[idx].v; prevVal = val; }
+      else if(idx >= 0){
         if(prevVal !== null){ val = prevVal; estimated = true; }
         else if(hi < hist.length){ val = Number(hist[hi].arpu) || 0; prevVal = val; hi++; }
         else break;
       }
-      else {                                                                
+      else {
         if(hi < hist.length){ val = Number(hist[hi].arpu) || 0; prevVal = val; hi++; }
         else break;
       }
@@ -801,13 +800,13 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
     return (count === n) ? { v: Math.round(sum / n), est: estimated } : { v: '—', est: false };
   }
 
-  
+
   function avgCell(r){
     if(!r || r.v === '—') return '—';
     return fmtMoney(r.v) + (r.est ? '<span class="fc-est">推算计算值</span>' : '');
   }
 
-  
+
   function drawChart(arpu, forecast){
     var box = $('trendChart');
     if(!arpu || !arpu.length){
@@ -815,11 +814,11 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
       return;
     }
     var fore = forecast || [];
-    
+
     var data = arpu.slice().reverse();
-    
+
     fore.forEach(function(f){ data.push({ month: f.m, arpu: f.v, carry: !!f.carry }); });
-    var histLen = data.length - fore.length; 
+    var histLen = data.length - fore.length;
     var W = 640, H = 250, PL = 40, PR = 16, PT = 24, PB = 30;
     var pw = W - PL - PR, ph = H - PT - PB;
     var max = 0;
@@ -835,7 +834,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
       return { x: x(i), y: y(v), v: v, m: String(d.month || '').slice(5), fore: (i >= histLen), carry: !!d.carry };
     });
 
-    
+
     var grid = '';
     [0, 0.5, 1].forEach(function(f){
       var yy = PT + ph - ph * f;
@@ -844,16 +843,16 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
             + '<text class="ay" x="' + (PL - 8) + '" y="' + (yy + 4) + '" font-size="12" font-weight="600" fill="#aab4c8" text-anchor="end">' + val + '</text>';
     });
 
-    
+
     var histPts = pts.slice(0, histLen);
     var line = histPts.map(function(p, i){ return (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ' ' + p.y.toFixed(1); }).join(' ');
-    
+
     var area = 'M' + histPts[0].x.toFixed(1) + ' ' + (PT + ph).toFixed(1)
       + 'L' + histPts[0].x.toFixed(1) + ' ' + histPts[0].y.toFixed(1)
       + histPts.slice(1).map(function(p){ return 'L' + p.x.toFixed(1) + ' ' + p.y.toFixed(1); }).join(' ')
       + 'L' + histPts[histPts.length - 1].x.toFixed(1) + ' ' + (PT + ph).toFixed(1) + 'Z';
 
-    
+
     var foreLine = '';
     if(fore.length){
       var start = histPts[histPts.length - 1];
@@ -861,7 +860,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
         + pts.slice(histLen).map(function(p){ return 'L' + p.x.toFixed(1) + ' ' + p.y.toFixed(1); }).join(' ');
     }
 
-    
+
     var sum = 0, valid = 0;
     data.forEach(function(d){ var v = Number(d.arpu); if(!isNaN(v)){ sum += v; valid++; } });
     var avg = (valid > 0) ? Math.round(sum / valid * 100) / 100 : null;
@@ -876,9 +875,9 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
       }
       var isCarry = p.fore && p.carry;
       var isCur = p.fore && !isCarry && fcData.curMonth && String(p.m) === String(fcData.curMonth).slice(5);
-      var ly = (p.y - 13 < PT) ? p.y + 18 : p.y - 13; 
+      var ly = (p.y - 13 < PT) ? p.y + 18 : p.y - 13;
       if(avgY > 0 && p.x > 555 && Math.abs(ly - (avgY - 7)) < 24){
-        ly = avgY + 20; 
+        ly = avgY + 20;
       }
       if(lastLY !== null && (p.x - lastLX) < 45 && Math.abs(ly - lastLY) < 26){
         ly = (ly > p.y) ? p.y - 13 : p.y + 18;
@@ -892,7 +891,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
       labels += '<text class="dn" x="' + lx.toFixed(1) + '" y="' + ly + '" font-size="15" font-weight="700" fill="' + fill + '" text-anchor="middle">' + fmtUp(p.v) + '</text>';
     });
 
-    
+
     var xlabels = pts.map(function(p){
       var isCarry = p.fore && p.carry;
       var isCur = p.fore && !isCarry && fcData.curMonth && String(p.m) === String(fcData.curMonth).slice(5);
@@ -905,7 +904,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
       return '<text class="ax" x="' + tx.toFixed(1) + '" y="' + (H - 8) + '" font-size="14" font-weight="700" fill="' + col + '" text-anchor="middle">' + esc(lbl) + '</text>';
     }).join('');
 
-    
+
     var avgMark = '';
     if(avg !== null && avg > 0){
       avgMark = '<line x1="' + PL + '" y1="' + avgY.toFixed(1) + '" x2="' + (W - PR) + '" y2="' + avgY.toFixed(1) + '" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4 4" opacity=".9"/>';
@@ -934,7 +933,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
       + '</svg>';
   }
 
-  // 原生接口解析：entity 为嵌套 JSON 字符串，arpu_1~arpu_6 扁平字段转数组
+
   function parseNative(res, num){
     var entity = JSON.parse(res.entity);
     var arpuArray = [], vals = [];
@@ -945,7 +944,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
         vals.push(Number(entity[key]));
       }
     }
-    // 生成月份标签(从当前月往前推)
+
     var cur = currentMonth();
     for(var i = 0; i < arpuArray.length; i++){
       if(i === 0){ arpuArray[i].month = cur; }
@@ -961,8 +960,8 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
     return { arpu: arpuArray, avg_3: avg3, avg_6: avg6 };
   }
 
-  // 单一 GET 请求封装
-  // 单一 GET 请求封装：fetch + 20s 超时，返回 Promise<string>
+
+
   function request(url){
     return new Promise(function(resolve, reject){
       var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
@@ -977,10 +976,10 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
     });
   }
 
-  // 查询入口：按优先级依次尝试接口，成功即止，全部失败才报错
-  var nativeDownUntil = 0; // 原生接口失败记忆：此时间前跳过原生
 
-  // 同号结果缓存：TTL 内直接命中，避免重复打接口
+  var nativeDownUntil = 0;
+
+
   var CACHE_KEY = 'arpu_cache_v1';
   function cacheGet(num){
     try{
@@ -998,7 +997,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
     }catch(e){}
   }
 
-  // 查询成功收尾：渲染 + 更新接口徽标 + 落缓存(空结果不缓存)
+
   function succeed(data, num, src, fromCache){
     restoreBtn();
     render(data, num);
@@ -1017,7 +1016,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
     toast('接口均不可用，请稍后重试', true);
   }
 
-  // 查询入口：缓存命中直接渲染；否则两端接口并行抢答，先成功者胜
+
   function query(){
     var num = phone.value.trim();
     if(num.length !== 11){
@@ -1025,13 +1024,13 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
       phone.focus();
       return;
     }
-    var mySeq = ++reqSeq; 
+    var mySeq = ++reqSeq;
     btn.disabled = true;
     btn.classList.add('loading');
     btnTxt.textContent = '查询中';
     inputState.className = 'state idle'; inputState.textContent = '查询中';
 
-    // 1. 缓存命中
+
     var cached = cacheGet(num);
     if(cached){
       if(mySeq !== reqSeq) return;
@@ -1039,7 +1038,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
       return;
     }
 
-    // 2. 接口列表（配置化）：需要时在此增删
+
     var eps = [
       {
         id: 'native', name: '原生',
@@ -1059,7 +1058,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
       }
     ];
 
-    // 3. 健康记忆：原生在记忆期内直接跳过
+
     var list = eps.filter(function(e){ return !(e.id === 'native' && Date.now() < nativeDownUntil); });
     if(!list.length){ failAll(); return; }
 
@@ -1100,10 +1099,10 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
     cntLabel.textContent = v.length + ' / 11';
     if(v.length === 11){
       inputState.className = 'state ok'; inputState.textContent = '可查询';
-      
+
       query();
     } else {
-      
+
       restoreBtn();
       resultArea.classList.remove('show');
       reqSeq++;
@@ -1116,7 +1115,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时�
   phone.addEventListener('keydown', function(e){ if(e.key === 'Enter') query(); });
   btn.addEventListener('click', query);
 
-  
+
   document.querySelectorAll('.fc-field input').forEach(function(inp){
     inp.addEventListener('input', calcForecast);
   });

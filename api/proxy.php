@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// 限流：同 IP 每分钟最多 15 次，防被刷/被当代理
+
 function rate_limit() {
     $ip = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '0';
     $dir = sys_get_temp_dir() . '/arpu_rate';
@@ -43,7 +43,7 @@ if (empty($phone) || strlen($phone) !== 11) {
     exit;
 }
 
-// 接口分发：src=native 走移动原生(默认)，src=backup 走备用封装接口
+
 $src = isset($_GET['src']) && $_GET['src'] === 'backup' ? 'backup' : 'native';
 if ($src === 'backup') {
     $target_url = 'https://arpu.151365.cc/check?phone_no=' . urlencode($phone);
