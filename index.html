@@ -904,7 +904,7 @@
         + '<text x="' + (ax + abw - 6) + '" y="' + (ay + 16) + '" font-size="15" font-weight="700" fill="#2f6bff" text-anchor="end">' + fmtUp(avg) + '</text>';
     }
 
-    box.innerHTML = avgBadge + '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="消费趋势折线图">'
+    box.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="消费趋势折线图">'
       + '<defs><linearGradient id="tgrad" x1="0" y1="0" x2="0" y2="1">'
       + '<stop offset="0" stop-color="#2f6bff" stop-opacity=".18"/>'
       + '<stop offset="1" stop-color="#2f6bff" stop-opacity="0"/></linearGradient></defs>'
@@ -913,6 +913,7 @@
       + '<path d="' + line + '" fill="none" stroke="#2f6bff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'
       + (foreLine ? '<path d="' + foreLine + '" fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round"/>' : '')
       + avgMark
+      + avgBadge
       + dots + labels + xlabels
       + '</svg>';
   }
