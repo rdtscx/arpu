@@ -896,12 +896,12 @@
     var avgBadge = '';
     if(avg !== null && avg > 0){
       avgMark = '<line x1="' + PL + '" y1="' + avgY.toFixed(1) + '" x2="' + (W - PR) + '" y2="' + avgY.toFixed(1) + '" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4 4" opacity=".9"/>';
-      var abw = 92, abh = 22;
+      var abw = 100, abh = 22;
       var ax = W - PR - abw;
       var ay = Math.max(PT, avgY - 30);
-      avgBadge = '<rect x="' + ax + '" y="' + ay + '" width="' + abw + '" height="' + abh + '" rx="11" fill="#fff" stroke="#e5eaf3" stroke-width="1"/>'
-        + '<text x="' + (ax + 8) + '" y="' + (ay + 15) + '" font-size="12" font-weight="600" fill="#7c8aa5">平均消费</text>'
-        + '<text x="' + (ax + abw - 6) + '" y="' + (ay + 16) + '" font-size="15" font-weight="700" fill="#2f6bff" text-anchor="end">' + fmtUp(avg) + '</text>';
+      avgBadge = '<rect x="' + ax + '" y="' + ay + '" width="' + abw + '" height="' + abh + '" rx="11" fill="#e7f7ee" stroke="#c5ecd6" stroke-width="1"/>'
+        + '<text x="' + (ax + 8) + '" y="' + (ay + 15) + '" font-size="12" font-weight="600" fill="#16a34a">平均消费</text>'
+        + '<text x="' + (ax + abw - 6) + '" y="' + (ay + 16) + '" font-size="15" font-weight="700" fill="#16a34a" text-anchor="end">' + fmtUp(avg) + '</text>';
     }
 
     box.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="消费趋势折线图">'
