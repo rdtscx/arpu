@@ -808,7 +808,7 @@
       var yy = PT + ph - ph * f;
       var val = Math.round(max * f);
       grid += '<line x1="' + PL + '" y1="' + yy + '" x2="' + (W - PR) + '" y2="' + yy + '" stroke="#eef1f6" stroke-width="1"/>'
-            + '<text x="' + (PL - 8) + '" y="' + (yy + 4) + '" font-size="10" fill="#aab4c8" text-anchor="end">' + val + '</text>';
+            + '<text x="' + (PL - 8) + '" y="' + (yy + 4) + '" font-size="11" font-weight="600" fill="#aab4c8" text-anchor="end">' + val + '</text>';
     });
 
     
@@ -836,19 +836,24 @@
       } else {
         dots += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="3.4" fill="#fff" stroke="#2f6bff" stroke-width="2.4"/>';
       }
+      var isCur = p.fore && fcData.curMonth && String(p.m) === String(fcData.curMonth).slice(5);
       var ly = (p.y - 10 < PT) ? p.y + 16 : p.y - 10; 
       if(lastLY !== null && Math.abs(ly - lastLY) < 15){
         ly = (ly > p.y) ? p.y - 10 : p.y + 16; 
       }
       lastLY = ly;
-      var fill = p.fore ? '#b45309' : '#33415e';
-      labels += '<text x="' + p.x.toFixed(1) + '" y="' + ly + '" font-size="11" font-weight="600" fill="' + fill + '" text-anchor="middle">' + fmtUp(p.v) + '</text>';
+      var fill = p.fore ? (isCur ? '#ec4899' : '#b45309') : '#33415e';
+      labels += '<text x="' + p.x.toFixed(1) + '" y="' + ly + '" font-size="13" font-weight="700" fill="' + fill + '" text-anchor="middle">' + fmtUp(p.v) + '</text>';
     });
 
     
     var xlabels = pts.map(function(p){
-      var lbl = p.m + '月' + (p.fore ? '·预' : '');
-      return '<text x="' + p.x.toFixed(1) + '" y="' + (H - 8) + '" font-size="11" fill="' + (p.fore ? '#b45309' : '#7c8aa5') + '" text-anchor="middle">' + esc(lbl) + '</text>';
+      var isCur = p.fore && fcData.curMonth && String(p.m) === String(fcData.curMonth).slice(5);
+      var lbl, col;
+      if(isCur){ lbl = '当前月'; col = '#ec4899'; }
+      else if(p.fore){ lbl = p.m + '月·预'; col = '#b45309'; }
+      else { lbl = p.m + '月'; col = '#7c8aa5'; }
+      return '<text x="' + p.x.toFixed(1) + '" y="' + (H - 8) + '" font-size="13" font-weight="700" fill="' + col + '" text-anchor="middle">' + esc(lbl) + '</text>';
     }).join('');
 
     
@@ -859,7 +864,7 @@
     if(avg !== null && avg > 0){
       var avgY = y(avg);
       avgMark = '<line x1="' + PL + '" y1="' + avgY.toFixed(1) + '" x2="' + (W - PR) + '" y2="' + avgY.toFixed(1) + '" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4 4" opacity=".9"/>'
-        + '<text x="' + (W - PR - 2) + '" y="' + (avgY - 7).toFixed(1) + '" font-size="11" font-weight="600" fill="#64748b" text-anchor="end">平均 ' + fmtUp(avg) + '</text>';
+        + '<text x="' + (W - PR - 2) + '" y="' + (avgY - 7).toFixed(1) + '" font-size="13" font-weight="700" fill="#64748b" text-anchor="end">平均 ' + fmtUp(avg) + '</text>';
     }
 
     box.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="消费趋势折线图">'
