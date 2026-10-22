@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>话费查询</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='7' fill='%232f6bff'/%3E%3Cpath d='M8 6h2.6v12H8zm5.4 0H16v12h-2.6z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#f2f4f8;
+    --card:#ffffff;
+    --ink:#1b2a4a;
+    --ink-2:#33415e;
+    --muted:#7c8aa5;
+    --faint:#aab4c8;
+    --line:#e7ebf2;
+    --accent:#2f6bff;
+    --accent-soft:#eaf1ff;
+    --accent-2:#18a0e8;
+    --ok:#16a34a;
+    --up:#e02e2e;
+    --down:#16a34a;
+    --warn-bg:#fff7ea;
+    --warn-line:#f5e2bd;
+    --warn-ink:#8a5b00;
+    --radius:16px;
+    --radius-sm:12px;
+    --shadow:0 10px 28px rgba(23,45,90,.08);
+    --shadow-sm:0 4px 14px rgba(23,45,90,.06);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    min-height:100vh;
+    line-height:1.5;
+  }
+
+  
+  .appbar{
+    background:var(--card);
+    border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:20;
+  }
+  .appbar-inner{
+    max-width:760px;margin:0 auto;
+    display:flex;align-items:center;gap:12px;
+    padding:14px 16px;
+  }
+  .appbar .logo{
+    width:36px;height:36px;border-radius:10px;flex:none;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    display:grid;place-items:center;
+    box-shadow:0 4px 10px rgba(47,107,255,.28);
+  }
+  .appbar .logo svg{width:18px;height:18px}
+  .appbar .ttl{flex:1;min-width:0}
+  .appbar h1{font-size:16px;font-weight:650;letter-spacing:.3px}
+  .appbar .sub{font-size:12px;color:var(--muted);margin-top:1px}
+  .appbar .badge{
+    font-size:11px;font-weight:600;color:var(--accent);
+    background:var(--accent-soft);border-radius:20px;padding:4px 10px;flex:none;
+  }
+
+  
+  .main{max-width:760px;margin:0 auto;padding:18px 16px 40px}
+  .section-title{
+    font-size:12px;font-weight:600;color:var(--muted);
+    margin:22px 4px 8px;letter-spacing:.4px;
+  }
+  .section-title:first-child{margin-top:2px}
+
+  
+  .card{
+    background:var(--card);border-radius:var(--radius);
+    box-shadow:var(--shadow-sm);
+    border:1px solid var(--line);
+    overflow:hidden;
+  }
+  .card+.card{margin-top:12px}
+
+  
+  .row{
+    display:flex;align-items:center;gap:14px;
+    padding:15px 16px;
+    min-height:60px;
+  }
+  .row+.row{border-top:1px solid var(--line)}
+  .row .ico{
+    width:38px;height:38px;border-radius:11px;flex:none;
+    background:var(--accent-soft);
+    display:grid;place-items:center;
+  }
+  .row .ico svg{width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .row .txt{flex:1;min-width:0}
+  .row .txt .t{font-size:15px;font-weight:600;color:var(--ink)}
+  .row .txt .d{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.55}
+  .row .act{flex:none;display:flex;align-items:center;gap:6px}
+
+  .chev{width:14px;height:14px;stroke:var(--faint);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+
+  
+  .state{font-size:12px;font-weight:600;padding:5px 10px;border-radius:20px;white-space:nowrap}
+  .state.idle{background:#eef1f6;color:var(--muted)}
+  .state.ok{background:#e7f7ee;color:var(--ok)}
+  .state.err{background:#fdecec;color:var(--up)}
+
+  
+  .input-card{padding:18px 16px 16px}
+  .input-label{
+    font-size:13px;font-weight:600;color:var(--ink-2);
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;
+  }
+  .input-label .cnt{font-size:12px;font-weight:600;color:var(--muted)}
+  .input-wrap{position:relative}
+  .input-wrap .cell-ico{
+    position:absolute;left:14px;top:50%;transform:translateY(-50%);
+    width:20px;height:20px;stroke:var(--faint);fill:none;stroke-width:2;stroke-linecap:round;
+    pointer-events:none;
+  }
+  input#phone{
+    width:100%;height:54px;
+    font-size:20px;letter-spacing:2px;text-align:center;
+    border:1.5px solid var(--line);border-radius:var(--radius-sm);outline:none;
+    color:var(--ink);background:#fafbfe;padding:0 56px;
+    transition:border-color .18s, box-shadow .18s;
+  }
+  input#phone:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(47,107,255,.10);background:#fff}
+  input#phone::placeholder{letter-spacing:0;color:var(--faint);font-size:15px}
+  .btn{
+    margin-top:12px;width:100%;height:50px;border:none;border-radius:var(--radius-sm);cursor:pointer;
+    background:var(--accent);color:#fff;
+    font-size:15px;font-weight:600;letter-spacing:1px;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    transition:background .18s, transform .12s, box-shadow .2s, opacity .2s;
+    box-shadow:0 6px 16px rgba(47,107,255,.24);
+  }
+  .btn:hover:not(:disabled){background:#2558e0;transform:translateY(-1px)}
+  .btn:active:not(:disabled){transform:translateY(0)}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .btn svg{width:17px;height:17px;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .btn.loading svg{animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .input-note{
+    margin-top:10px;font-size:12px;color:var(--muted);text-align:center;
+  }
+
+  
+  .overview{display:flex;align-items:stretch;padding:18px 16px;gap:14px}
+  .overview .avatar{
+    width:44px;height:44px;border-radius:12px;flex:none;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    display:grid;place-items:center;
+  }
+  .overview .avatar svg{width:22px;height:22px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .overview .info{flex:1;min-width:0}
+  .overview .info .lab{font-size:12px;color:var(--muted)}
+  .overview .info .num{font-size:20px;font-weight:700;letter-spacing:1px;margin-top:1px}
+  .overview .info .num small{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:0}
+  .overview .latest{flex:none;text-align:right;align-self:center}
+  .overview .latest .v{font-size:22px;font-weight:700;color:var(--accent)}
+  .overview .latest .l{font-size:11.5px;color:var(--muted);margin-top:2px}
+
+  
+  .tbl{width:100%;border-collapse:collapse;table-layout:fixed}
+  .tbl thead th{
+    font-size:11.5px;font-weight:600;color:var(--faint);text-align:center;
+    padding:10px 6px;background:#fafbfe;border-bottom:1px solid var(--line);
+  }
+  .tbl tbody td{
+    text-align:center;padding:13px 6px;border-bottom:1px solid var(--line);
+    font-size:14px;
+  }
+  .tbl tbody tr:last-child td{border-bottom:none}
+  .tbl td.month{color:var(--ink-2);font-weight:500}
+  .tbl td.arpu{font-weight:700;font-size:15.5px;color:var(--ink)}
+  .tbl td .diff{font-size:12.5px;font-weight:600}
+  .tbl .empty{padding:26px 6px;color:var(--faint);font-size:13.5px;text-align:center}
+  .tbl tr.fc-row td{background:#fff8ec}
+  .tbl td.fc-fore{color:#b45309}
+  .fc-dot{
+    display:inline-block;width:9px;height:9px;border-radius:50%;
+    background:#fff;border:2.2px solid #f59e0b;margin-right:6px;vertical-align:1px;
+  }
+
+  
+  .chart-wrap{padding:2px 14px 16px}
+  .chart-wrap svg{width:100%;height:auto;display:block}
+  .chart-empty{padding:32px 0;text-align:center;color:var(--faint);font-size:13px}
+
+  
+  .stats{display:grid;grid-template-columns:1fr 1fr}
+  .stats .stat{padding:16px;text-align:center}
+  .stats .stat+.stat{border-left:1px solid var(--line)}
+  .stats .stat small{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+  .stats .stat strong{font-size:19px;font-weight:700}
+
+  
+  .fc-body{padding:0 16px 16px}
+  .fc-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
+  .fc-field{margin-top:12px}
+  .fc-label{font-size:12.5px;font-weight:600;color:var(--ink-2);display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .fc-label .fc-memo{font-size:11px;font-weight:500;color:var(--faint);background:#eef1f6;padding:2px 8px;border-radius:10px}
+  .fc-input{position:relative;display:flex;align-items:center}
+  .fc-input .fc-pre,.fc-input .fc-post{
+    position:absolute;top:50%;transform:translateY(-50%);z-index:1;
+    font-size:14px;font-weight:600;color:var(--muted);pointer-events:none;
+  }
+  .fc-input .fc-pre{left:12px}
+  .fc-input .fc-post{right:12px}
+  .fc-input input{
+    width:100%;height:44px;font-size:16px;text-align:center;letter-spacing:1px;
+    border:1.5px solid var(--line);border-radius:var(--radius-sm);outline:none;
+    color:var(--ink);background:#fafbfe;padding:0 44px;
+    transition:border-color .18s, box-shadow .18s;
+  }
+  .fc-input input:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(47,107,255,.10);background:#fff}
+  .fc-input input::placeholder{color:var(--faint);font-size:13px;letter-spacing:0}
+  .fc-result{margin-top:14px;border:1px solid var(--line);border-radius:var(--radius-sm);overflow:hidden}
+  .fc-tip{padding:9px 12px;font-size:12px;color:var(--muted);background:#fafbfe;border-bottom:1px solid var(--line)}
+  .fc-tbl{width:100%;border-collapse:collapse;table-layout:fixed}
+  .fc-tbl thead th{
+    font-size:11.5px;font-weight:600;color:var(--faint);text-align:center;
+    padding:9px 4px;background:#fafbfe;border-bottom:1px solid var(--line);
+  }
+  .fc-tbl tbody td{text-align:center;padding:10px 4px;border-bottom:1px solid var(--line);font-size:13px}
+  .fc-tbl tbody tr:last-child td{border-bottom:none}
+  .fc-tbl td.fc-m{color:var(--ink-2);font-weight:500}
+  .fc-tbl td.fc-v{font-weight:700;color:#b45309}
+  .fc-tbl td.fc-a{color:var(--ink);font-weight:600}
+  .fc-tbl .fc-empty{padding:20px 6px;color:var(--faint);font-size:12.5px;text-align:center}
+  .fc-est{
+    display:inline-block;margin-left:4px;padding:1px 5px;font-size:10px;font-weight:500;line-height:1.4;
+    color:#b45309;background:#fff7ea;border:1px dashed #f59e0b;border-radius:4px;vertical-align:middle;white-space:nowrap;
+  }
+  @media (max-width:480px){
+    .fc-fields{grid-template-columns:1fr}
+    .fc-field{margin-top:10px}
+  }
+
+  
+  .notice-wrap{margin:0 16px 16px}
+  .notice{padding:14px 14px 13px;border-radius:var(--radius-sm);
+    background:var(--warn-bg);border:1px solid var(--warn-line);line-height:1.8;color:var(--warn-ink);
+    text-align:left}
+  .notice-title{font-size:15px;font-weight:700;color:var(--warn-ink);text-align:center;letter-spacing:.5px}
+  .notice-sub{font-size:12px;color:#8a6a3a;text-align:center;margin:4px 0 10px}
+  .notice-tiers{display:flex;flex-direction:column;gap:7px}
+  .notice .tier{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px}
+  .tier-name{font-weight:700;color:#b45309;white-space:nowrap;min-width:48px}
+  .tier-name.tier-active{color:#e02e2e;font-weight:800}
+  .tier-cri{color:var(--warn-ink);text-align:right}
+
+  
+  .empty-card{display:none;padding:34px 20px;text-align:center}
+  .empty-card.show{display:block}
+  .empty-card .eico{width:52px;height:52px;border-radius:16px;background:#eef1f6;margin:0 auto 12px;display:grid;place-items:center}
+  .empty-card .eico svg{width:26px;height:26px;stroke:var(--faint);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .empty-card .et{font-size:15px;font-weight:600;color:var(--ink-2)}
+  .empty-card .ed{font-size:12.5px;color:var(--muted);margin-top:4px}
+
+  
+  #resultArea{display:none}
+  #resultArea.show{display:block;animation:fade .3s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* ===== toast ===== */
+  .toast{
+    position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(8px);
+    background:#1b2a4a;color:#fff;padding:11px 18px;border-radius:12px;font-size:14px;
+    box-shadow:0 8px 24px rgba(0,0,0,.22);opacity:0;pointer-events:none;transition:all .25s;
+    z-index:30;max-width:88%;text-align:center;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.err{background:#c0353b}
+
+  .foot{max-width:760px;margin:0 auto;padding:6px 16px 30px;text-align:center;font-size:12px;color:var(--faint)}
+  .foot span{display:block;margin-top:2px}
+
+  
+  @media (min-width:768px){
+    .main{padding:26px 16px 48px}
+    .card{box-shadow:var(--shadow)}
+    .row{padding:16px 18px}
+    .stats .stat{padding:20px 16px}
+    .stats .stat strong{font-size:22px}
+    .overview{padding:20px 18px}
+    .overview .latest .v{font-size:26px}
+    .tbl tbody td{padding:14px 6px;font-size:15px}
+    .tbl td.arpu{font-size:16.5px}
+    .btn{height:52px}
+  }
+</style>
+</head>
+<body>
+
+
+<div class="appbar">
+  <div class="appbar-inner">
+    <div class="logo"><svg viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="rgba(255,255,255,.16)"/><path d="M8 6h2.6v12H8zm5.4 0H16v12h-2.6z" fill="#fff"/></svg></div>
+    <div class="ttl">
+      <h1>话费查询</h1>
+      <div class="sub">ARPU 消费记录</div>
+    </div>
+    <div class="badge" id="api-badge">接口 · 在线</div>
+  </div>
+</div>
+
+<div class="main">
+
+  
+  <div class="section-title">号码查询</div>
+  <div class="card">
+    <div class="row">
+      <div class="ico"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.13.96.36 1.9.7 2.8a2 2 0 0 1-.45 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.45c.9.34 1.84.57 2.8.7a2 2 0 0 1 1.7 2z"/></svg></div>
+      <div class="txt">
+        <div class="t">输入手机号码</div>
+        <div class="d">输入手机号，查询历史每月消费与均值</div>
+      </div>
+      <div class="act"><span class="state idle" id="input-state">等待输入</span></div>
+    </div>
+    <div style="padding:0 16px 16px">
+      <div class="input-label">
+        <span>手机号码</span>
+        <span class="cnt" id="cnt-label">0 / 11</span>
+      </div>
+      <div class="input-wrap">
+        <svg class="cell-ico" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2.5"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+        <input id="phone" type="tel" inputmode="numeric" maxlength="11"
+               placeholder="请输入 11 位手机号" autocomplete="off">
+      </div>
+      <button class="btn" id="btn">
+        <svg id="btn-ico" viewBox="0 0 24 24"><path d="M3 17l6-6-6-6M13 19h8"/></svg>
+        <span id="btn-txt">查询话费</span>
+      </button>
+    </div>
+  </div>
+
+  
+  <div id="resultArea">
+
+    <div class="section-title">查询结果</div>
+
+    
+    <div class="card empty-card" id="emptyCard">
+      <div class="eico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+      <div class="et">暂无可查询的消费记录</div>
+      <div class="ed">该号码可能无 ARPU 记录，请核对后重试</div>
+    </div>
+
+    
+    <div id="dataArea">
+      <div class="card">
+        <div class="overview">
+          <div class="avatar"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2.5"/><line x1="11" y1="18" x2="13" y2="18"/></svg></div>
+          <div class="info">
+            <div class="lab">查询号码</div>
+            <div class="num" id="r-phone">—</div>
+          </div>
+          <div class="latest">
+            <div class="v" id="r-latest">—</div>
+            <div class="l" id="r-latest-label">最近月份消费</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 17l6-6-6-6M13 19h8"/></svg></div>
+          <div class="txt">
+            <div class="t">消费明细</div>
+            <div class="d">历史每月消费与环比变化</div>
+          </div>
+          <div class="act"><span class="state ok" id="r-count">—</span></div>
+        </div>
+        <table class="tbl">
+          <colgroup><col style="width:34%"><col style="width:33%"><col style="width:33%"></colgroup>
+          <thead><tr><th>月份</th><th>每月消费</th><th>环比</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-5 3 3 5-6"/></svg></div>
+          <div class="txt">
+            <div class="t">消费趋势</div>
+            <div class="d">低月到高月的消费走势</div>
+          </div>
+        </div>
+        <div class="chart-wrap" id="trendChart"></div>
+      </div>
+
+      <div class="card" id="forecastCard">
+        <div class="row">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 17l6-6-6-6M13 19h8"/></svg></div>
+          <div class="txt">
+            <div class="t">预计 ARPU 计算</div>
+            <div class="d">输入未来月份消费，实时预测均值与环比</div>
+          </div>
+          <div class="act"><span class="state idle" id="fc-state">等待输入</span></div>
+        </div>
+        <div class="fc-body">
+          <div class="fc-fields" id="fc-fields">
+            <div class="fc-field" data-idx="0">
+              <div class="fc-label">未来 1 月 <span class="fc-memo" id="fc-m1">—</span></div>
+              <div class="fc-input"><span class="fc-pre">¥</span><input data-k="0" type="text" inputmode="decimal" placeholder="输入预计消费后自动展开下月"><span class="fc-post">元</span></div>
+            </div>
+          </div>
+          <div class="fc-result">
+            <div class="fc-tip">输入未来月份的预计消费，自动计算各月均值并同步到明细与折线图（最多 6 个月）</div>
+            <table class="fc-tbl" id="fc-tbl">
+              <thead><tr><th>月份</th><th>预计消费</th><th>近3月均</th><th>近6月均</th></tr></thead>
+              <tbody id="fc-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 20V10m6 10V4m6 16v-7m6 7v-10"/></svg></div>
+          <div class="txt">
+            <div class="t">消费统计</div>
+            <div class="d">最近周期的平均消费</div>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat"><small>近 3 月平均</small><strong id="r-avg3">—</strong></div>
+          <div class="stat"><small>近 6 月平均</small><strong id="r-avg6">—</strong></div>
+        </div>
+        <div class="notice-wrap" id="noticeCard" style="display:none">
+          <div class="notice" id="notice"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="foot">
+  <span>数据来源：运营商 ARPU 接口</span>
+  <span>仅供个人消费查询参考 · 页面由静态 HTML 驱动</span>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+  var API = 'https://arpu.151365.cc/check';
+  var $ = function(id){ return document.getElementById(id); };
+  var phone = $('phone'), btn = $('btn'), btnTxt = $('btn-txt');
+  var resultArea = $('resultArea'), dataArea = $('dataArea'), emptyCard = $('emptyCard');
+  var tbody = $('tbody'), cntLabel = $('cnt-label'), inputState = $('input-state');
+  var reqSeq = 0; 
+
+  function restoreBtn(){
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btnTxt.textContent = '查询话费';
+  }
+
+  var toastTimer = null;
+  function toast(msg, isErr){
+    var t = $('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isErr ? ' err' : '');
+    if(toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.className = 'toast'; }, 2600);
+  }
+
+  function fmtMoney(n){
+    var v = Number(n);
+    if(isNaN(v)) return '—';
+    return '¥' + (Math.round(v * 100) / 100).toLocaleString('zh-CN', {minimumFractionDigits:0, maximumFractionDigits:2});
+  }
+  function fmtUp(n){
+    var v = Number(n);
+    if(isNaN(v)) return '—';
+    return Math.round(v * 100) / 100;
+  }
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+  function diffHtml(prev, cur){
+    if(prev === null) return '<span style="color:#aab4c8">—</span>';
+    var d = cur - prev;
+    if(d === 0) return '<span class="diff" style="color:#aab4c8">持平</span>';
+    if(d > 0) return '<span class="diff" style="color:#e02e2e">▲ +' + fmtUp(d) + '</span>';
+    return '<span class="diff" style="color:#16a34a">▼ ' + fmtUp(d) + '</span>';
+  }
+
+  function render(data, num){
+    $('r-phone').textContent = num;
+
+    var arpu = (data.arpu && data.arpu.length) ? data.arpu : [];
+    var n = arpu.length;
+    $('r-count').textContent = n ? ('共 ' + n + ' 个月') : '暂无记录';
+
+    if(n){
+      
+      var rev = arpu.slice().reverse();
+      var rows = '';
+      for(var i=0;i<rev.length;i++){
+        var it = rev[i];
+        var m = esc(it.month || '—');
+        var a = Number(it.arpu);
+        
+        var prev = (i > 0) ? Number(rev[i-1].arpu) : null;
+        rows += '<tr><td class="month">' + m + '</td><td class="arpu">' + fmtMoney(a) + '</td><td>' + diffHtml(prev, a) + '</td></tr>';
+      }
+      tbody.innerHTML = rows;
+      
+      var last = arpu[0];
+      $('r-latest').textContent = fmtMoney(last.arpu);
+      $('r-latest-label').textContent = esc(last.month || '') + ' 消费';
+    } else {
+      tbody.innerHTML = '<tr><td colspan="3" class="empty">暂无可查询的消费记录</td></tr>';
+      $('r-latest').textContent = '—';
+      $('r-latest-label').textContent = '最近月份消费';
+    }
+
+    
+    var avg3 = Number(data.avg_3), avg6 = Number(data.avg_6);
+    fcData.avg3 = (!isNaN(avg3) && avg3 > 0) ? avg3 : null;   
+    fcData.avg6 = (!isNaN(avg6) && avg6 > 0) ? avg6 : null;
+    $('r-avg3').textContent = (fcData.avg3 !== null) ? fmtMoney(fcData.avg3) : '—';
+    $('r-avg6').textContent = (fcData.avg6 !== null) ? fmtMoney(fcData.avg6) : '—';
+
+    
+    var noticeCard = $('noticeCard'), notice = $('notice');
+    notice.innerHTML =
+      '<div class="notice-title">全球通会员定级标准</div>'
+      + '<div class="notice-sub">满足任意一项即可定级，同时满足以最高等级为准</div>'
+      + '<div class="notice-tiers">'
+      + '<div class="tier"><span class="tier-name">普卡</span><span class="tier-cri">年累计 ≥ 1080 元 或 月消费 ≥ 90 元</span></div>'
+      + '<div class="tier"><span class="tier-name">银卡</span><span class="tier-cri">年累计 ≥ 1320 元 或 月消费 ≥ 110 元</span></div>'
+      + '<div class="tier"><span class="tier-name">金卡</span><span class="tier-cri">年累计 ≥ 1800 元 或 月消费 ≥ 150 元</span></div>'
+      + '<div class="tier"><span class="tier-name">白金卡</span><span class="tier-cri">年累计 ≥ 2400 元 或 月消费 ≥ 200 元</span></div>'
+      + '<div class="tier"><span class="tier-name">钻石卡</span><span class="tier-cri">年累计 ≥ 3720 元 或 月消费 ≥ 310 元</span></div>'
+      + '</div>';
+    noticeCard.style.display = 'block';
+    markTier(fcData.avg3); 
+
+    
+    fcData.has = !!n;
+    fcData.lastMonth = n ? String(arpu[0].month || '') : null;
+    fcData.curMonth = currentMonth();   
+    fcData.arpu = arpu;
+    
+    var fieldsBox = document.getElementById('fc-fields');
+    var firstField = fieldsBox.querySelector('.fc-field');
+    var m0 = fcData.has ? fcMonthN(fcData.curMonth, 1) : '—';
+    firstField.querySelector('input').value = '';
+    firstField.setAttribute('data-idx', '0');
+    firstField.querySelector('input').setAttribute('data-k', '0');
+    firstField.querySelector('.fc-memo').textContent = (fcData.has ? m0 + ' 预测' : '—');
+    
+    var extras = fieldsBox.querySelectorAll('.fc-field[data-idx]:not([data-idx="0"])');
+    extras.forEach(function(el){ el.remove(); });
+    fcReset();
+
+    
+    drawChart(arpu);
+  }
+
+  
+  function nextMonth(str){
+    var p = String(str).split('-');
+    var y = +p[0], m = +p[1];
+    m += 1; if(m > 12){ m = 1; y += 1; }
+    return y + '-' + (m < 10 ? '0' + m : '' + m);
+  }
+
+  
+  var curMonthStr = null;
+  function localMonth(){
+    var d = new Date();
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
+  }
+  function initServerMonth(){
+    curMonthStr = localMonth(); 
+    try{
+      if(location.protocol === 'file:') return; 
+      fetch(window.location.href.split('#')[0].split('?')[0] + '?_=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
+        .then(function(r){
+          var h = r.headers.get('Date');
+          if(h){
+            var dt = new Date(h);
+            if(!isNaN(dt.getTime())) curMonthStr = dt.getFullYear() + '-' + ('0' + (dt.getMonth() + 1)).slice(-2);
+          }
+        })
+        .catch(function(){});
+    }catch(e){  }
+  }
+  function currentMonth(){ return curMonthStr || localMonth(); }
+  initServerMonth();
+
+  
+  var fcData = { has:false, lastMonth:null, curMonth:null, arpu:[], avg3:null, avg6:null };
+
+  
+  var TIERS = [ {name:'钻石卡', min:310}, {name:'白金卡', min:200}, {name:'金卡', min:150}, {name:'银卡', min:110}, {name:'普卡', min:90} ];
+  function markTier(ref){
+    var tier = null;
+    if(!(ref > 0)){  }
+    else {
+      for(var i=0;i<TIERS.length;i++){
+        if(ref >= TIERS[i].min){ tier = TIERS[i].name; break; }
+      }
+    }
+    document.querySelectorAll('.tier-name').forEach(function(el){ el.classList.remove('tier-active'); });
+    if(tier){
+      document.querySelectorAll('.tier-name').forEach(function(el){
+        if(el.textContent === tier) el.classList.add('tier-active');
+      });
+    }
+  }
+
+  
+  function syncStats(mRows){
+    if(!mRows || !mRows.length){ 
+      $('r-avg3').textContent = (fcData.avg3 !== null) ? fmtMoney(fcData.avg3) : '—';
+      $('r-avg6').textContent = (fcData.avg6 !== null) ? fmtMoney(fcData.avg6) : '—';
+      markTier(fcData.avg3); 
+      return;
+    }
+    var last = mRows[mRows.length - 1]; 
+    var a3 = (last.a3 && last.a3.v !== '—') ? last.a3.v : null;
+    var a6 = (last.a6 && last.a6.v !== '—') ? last.a6.v : null;
+    if(a3 !== null) $('r-avg3').textContent = fmtMoney(a3);
+    if(a6 !== null) $('r-avg6').textContent = fmtMoney(a6);
+    markTier(last.v); 
+  }
+  function fcReset(){
+    $('fc-tbody').innerHTML = '<tr><td colspan="4" class="fc-empty">输入未来月份预计消费后自动计算</td></tr>';
+    $('fc-state').className = 'state idle'; $('fc-state').textContent = '等待输入';
+  }
+
+  
+  function readForecast(){
+    var arr = [];
+    document.querySelectorAll('#fc-fields .fc-field input').forEach(function(inp){
+      var v = parseFloat(inp.value);
+      arr.push(isNaN(v) ? 0 : v);
+    });
+    return arr;
+  }
+
+  
+  function expandForecast(){
+    var fields = document.querySelectorAll('#fc-fields .fc-field');
+    var shown = fields.length;
+    if(shown >= 6) return;
+    var last = fields[shown - 1];
+    if(!(parseFloat(last.querySelector('input').value) > 0)) return; 
+    var idx = shown;
+    var f = document.createElement('div');
+    f.className = 'fc-field'; f.setAttribute('data-idx', idx);
+    var m = (fcData.curMonth ? fcMonthN(fcData.curMonth, idx + 1) : '—');
+    f.innerHTML = '<div class="fc-label">未来 ' + (idx + 1) + ' 月 <span class="fc-memo" id="fc-m' + (idx + 1) + '">' + m + ' 预测</span></div>'
+      + '<div class="fc-input"><span class="fc-pre">¥</span><input data-k="' + idx + '" type="text" inputmode="decimal" placeholder="预计消费"><span class="fc-post">元</span></div>';
+    document.getElementById('fc-fields').appendChild(f);
+    f.querySelector('input').addEventListener('input', calcForecast);
+    
+  }
+
+  
+  function fcMonthN(base, n){
+    var s = base;
+    for(var i=0;i<n;i++){ s = nextMonth(s); }
+    return s;
+  }
+
+  
+  function renderDetail(rev, fore){
+    var rows = '';
+    for(var i=0;i<rev.length;i++){
+      var it = rev[i];
+      var m = esc(it.month || '—');
+      var a = Number(it.arpu);
+      var prev = (i > 0) ? Number(rev[i-1].arpu) : null;
+      rows += '<tr><td class="month">' + m + '</td><td class="arpu">' + fmtMoney(a) + '</td><td>' + diffHtml(prev, a) + '</td></tr>';
+    }
+    
+    for(var j=0;j<fore.length;j++){
+      var f = fore[j];
+      if(!f.v) continue;
+      var prevV = (j > 0) ? Number(fore[j-1].v) : (rev.length ? Number(rev[rev.length-1].arpu) : null);
+      rows += '<tr class="fc-row"><td class="month fc-fore"><span class="fc-dot"></span>' + esc(f.m) + '</td>'
+            + '<td class="arpu fc-fore">' + fmtMoney(f.v) + '</td>'
+            + '<td>' + diffHtml(prevV, f.v) + '</td></tr>';
+    }
+    $('tbody').innerHTML = rows;
+    var fc = fore.filter(function(f){ return f.v; }).length;
+    $('r-count').textContent = (rev.length || fc) ? ('共 ' + rev.length + ' 个月' + (fc ? ' + ' + fc + ' 预计' : '')) : '暂无记录';
+  }
+
+  
+  function calcForecast(){
+    if(!fcData.has){
+      fcReset();
+      drawChart(fcData.arpu, []);
+      return;
+    }
+    var vals = readForecast();
+    var hasAny = vals.some(function(v){ return v > 0; });
+    if(!hasAny){
+      fcReset();
+      syncStats([]); 
+      drawChart(fcData.arpu, []);
+      renderDetail(fcData.arpu.slice().reverse(), []);
+      return;
+    }
+    
+    if(vals[vals.length - 1] > 0 && vals.length < 6){ expandForecast(); }
+    var hist = fcData.arpu; 
+    var m = fcData.curMonth;  
+    var filled = 0, fore = [], mRows = [];
+    for(var k=0;k<6;k++){
+      var v = vals[k];
+      if(k >= vals.length) break; 
+      m = nextMonth(m);           
+      if(!(v > 0)) continue;      
+      filled++;
+      fore.push({ m: m, v: v });
+      
+      var a3 = nearAvg(vals, hist, k, 3);
+      var a6 = nearAvg(vals, hist, k, 6);
+      mRows.push({ m: m, v: v, a3: a3, a6: a6 });
+    }
+    var rows = '';
+    mRows.forEach(function(r){
+      rows += '<tr><td class="fc-m">' + esc(r.m) + '</td><td class="fc-v">' + fmtMoney(r.v) + '</td><td class="fc-a">' + avgCell(r.a3) + '</td><td class="fc-a">' + avgCell(r.a6) + '</td></tr>';
+    });
+    $('fc-tbody').innerHTML = rows || '<tr><td colspan="4" class="fc-empty">—</td></tr>';
+    $('fc-state').className = 'state ok'; $('fc-state').textContent = '已计算 ' + filled + ' 个月';
+    syncStats(mRows); 
+
+    
+    renderDetail(fcData.arpu.slice().reverse(), fore);
+    
+    drawChart(fcData.arpu, fore);
+  }
+
+  
+  
+  
+  function nearAvg(vals, hist, k, n){
+    var sum = 0, count = 0, hi = 0, estimated = false, prevVal = null;
+    for(var j=n-1; j>=0; j--){
+      var idx = k - j;
+      var val;
+      if(idx >= 0 && vals[idx] > 0){ val = vals[idx]; prevVal = val; }        
+      else if(idx >= 0){                                                    
+        if(prevVal !== null){ val = prevVal; estimated = true; }
+        else if(hi < hist.length){ val = Number(hist[hi].arpu) || 0; prevVal = val; hi++; }
+        else break;
+      }
+      else {                                                                
+        if(hi < hist.length){ val = Number(hist[hi].arpu) || 0; prevVal = val; hi++; }
+        else break;
+      }
+      sum += val; count++;
+    }
+    return (count === n) ? { v: Math.round(sum / n), est: estimated } : { v: '—', est: false };
+  }
+
+  
+  function avgCell(r){
+    if(!r || r.v === '—') return '—';
+    return fmtMoney(r.v) + (r.est ? '<span class="fc-est">推算计算值</span>' : '');
+  }
+
+  
+  function drawChart(arpu, forecast){
+    var box = $('trendChart');
+    if(!arpu || !arpu.length){
+      box.innerHTML = '<div class="chart-empty">暂无趋势数据</div>';
+      return;
+    }
+    var fore = forecast || [];
+    
+    var data = arpu.slice().reverse();
+    
+    fore.forEach(function(f){ data.push({ month: f.m, arpu: f.v }); });
+    var histLen = data.length - fore.length; 
+    var W = 640, H = 250, PL = 40, PR = 16, PT = 24, PB = 30;
+    var pw = W - PL - PR, ph = H - PT - PB;
+    var max = 0;
+    data.forEach(function(d){ var v = Number(d.arpu); if(!isNaN(v) && v > max) max = v; });
+    if(max <= 0) max = 1;
+
+    function x(i){ return PL + (data.length === 1 ? pw / 2 : pw * i / (data.length - 1)); }
+    function y(v){ return PT + ph - (ph * v / max); }
+
+    var pts = data.map(function(d, i){
+      var v = Number(d.arpu);
+      if(isNaN(v)) v = 0;
+      return { x: x(i), y: y(v), v: v, m: String(d.month || '').slice(5), fore: (i >= histLen) };
+    });
+
+    
+    var grid = '';
+    [0, 0.5, 1].forEach(function(f){
+      var yy = PT + ph - ph * f;
+      var val = Math.round(max * f);
+      grid += '<line x1="' + PL + '" y1="' + yy + '" x2="' + (W - PR) + '" y2="' + yy + '" stroke="#eef1f6" stroke-width="1"/>'
+            + '<text x="' + (PL - 8) + '" y="' + (yy + 4) + '" font-size="10" fill="#aab4c8" text-anchor="end">' + val + '</text>';
+    });
+
+    
+    var histPts = pts.slice(0, histLen);
+    var line = histPts.map(function(p, i){ return (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ' ' + p.y.toFixed(1); }).join(' ');
+    
+    var area = 'M' + histPts[0].x.toFixed(1) + ' ' + (PT + ph).toFixed(1)
+      + 'L' + histPts[0].x.toFixed(1) + ' ' + histPts[0].y.toFixed(1)
+      + histPts.slice(1).map(function(p){ return 'L' + p.x.toFixed(1) + ' ' + p.y.toFixed(1); }).join(' ')
+      + 'L' + histPts[histPts.length - 1].x.toFixed(1) + ' ' + (PT + ph).toFixed(1) + 'Z';
+
+    
+    var foreLine = '';
+    if(fore.length){
+      var start = histPts[histPts.length - 1];
+      foreLine = 'M' + start.x.toFixed(1) + ' ' + start.y.toFixed(1)
+        + pts.slice(histLen).map(function(p){ return 'L' + p.x.toFixed(1) + ' ' + p.y.toFixed(1); }).join(' ');
+    }
+
+    
+    var dots = '', labels = '', lastLY = null;
+    pts.forEach(function(p){
+      if(p.fore){
+        dots += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="3.6" fill="#f59e0b" stroke="#fff" stroke-width="1.6"/>';
+      } else {
+        dots += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="3.4" fill="#fff" stroke="#2f6bff" stroke-width="2.4"/>';
+      }
+      var ly = (p.y - 10 < PT) ? p.y + 16 : p.y - 10; 
+      if(lastLY !== null && Math.abs(ly - lastLY) < 15){
+        ly = (ly > p.y) ? p.y - 10 : p.y + 16; 
+      }
+      lastLY = ly;
+      var fill = p.fore ? '#b45309' : '#33415e';
+      labels += '<text x="' + p.x.toFixed(1) + '" y="' + ly + '" font-size="11" font-weight="600" fill="' + fill + '" text-anchor="middle">' + fmtUp(p.v) + '</text>';
+    });
+
+    
+    var xlabels = pts.map(function(p){
+      var lbl = p.m + '月' + (p.fore ? '·预' : '');
+      return '<text x="' + p.x.toFixed(1) + '" y="' + (H - 8) + '" font-size="11" fill="' + (p.fore ? '#b45309' : '#7c8aa5') + '" text-anchor="middle">' + esc(lbl) + '</text>';
+    }).join('');
+
+    
+    var sum = 0, valid = 0;
+    data.forEach(function(d){ var v = Number(d.arpu); if(!isNaN(v)){ sum += v; valid++; } });
+    var avg = (valid > 0) ? Math.round(sum / valid * 100) / 100 : null;
+    var avgMark = '';
+    if(avg !== null && avg > 0){
+      var avgY = y(avg);
+      avgMark = '<line x1="' + PL + '" y1="' + avgY.toFixed(1) + '" x2="' + (W - PR) + '" y2="' + avgY.toFixed(1) + '" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4 4" opacity=".9"/>'
+        + '<text x="' + (W - PR - 2) + '" y="' + (avgY - 7).toFixed(1) + '" font-size="11" font-weight="600" fill="#64748b" text-anchor="end">平均 ' + fmtUp(avg) + '</text>';
+    }
+
+    box.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="消费趋势折线图">'
+      + '<defs><linearGradient id="tgrad" x1="0" y1="0" x2="0" y2="1">'
+      + '<stop offset="0" stop-color="#2f6bff" stop-opacity=".18"/>'
+      + '<stop offset="1" stop-color="#2f6bff" stop-opacity="0"/></linearGradient></defs>'
+      + grid
+      + '<path d="' + area + '" fill="url(#tgrad)"/>'
+      + '<path d="' + line + '" fill="none" stroke="#2f6bff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'
+      + (foreLine ? '<path d="' + foreLine + '" fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round"/>' : '')
+      + avgMark
+      + dots + labels + xlabels
+      + '</svg>';
+  }
+
+  function query(){
+    var num = phone.value.trim();
+    if(num.length !== 11){
+      toast('请输入 11 位手机号', true);
+      phone.focus();
+      return;
+    }
+    var mySeq = ++reqSeq; 
+    btn.disabled = true;
+    btn.classList.add('loading');
+    btnTxt.textContent = '查询中';
+    inputState.className = 'state idle'; inputState.textContent = '查询中';
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', API + '?phone_no=' + encodeURIComponent(num), true);
+    xhr.timeout = 20000;
+    xhr.onload = function(){
+      
+      if(mySeq !== reqSeq) return;
+      restoreBtn();
+      var txt = (xhr.responseText || '').trim();
+      if(!txt){
+        showEmpty();
+        inputState.className = 'state err'; inputState.textContent = '无记录';
+        return;
+      }
+      try{
+        var res = JSON.parse(txt);
+        if(res && res.code === 100){
+          render(res, num);
+          emptyCard.classList.remove('show');
+          dataArea.style.display = 'block';
+          resultArea.classList.add('show');
+          inputState.className = 'state ok'; inputState.textContent = '查询成功';
+        } else {
+          showEmpty();
+          inputState.className = 'state err'; inputState.textContent = '无记录';
+        }
+      }catch(e){
+        showEmpty();
+        inputState.className = 'state err'; inputState.textContent = '查询失败';
+        toast('查询失败，请稍后重试', true);
+      }
+    };
+    xhr.onerror = function(){
+      if(mySeq !== reqSeq) return;
+      restoreBtn();
+      showEmpty();
+      inputState.className = 'state err'; inputState.textContent = '网络异常';
+      toast('网络异常，查询失败', true);
+    };
+    xhr.ontimeout = function(){
+      if(mySeq !== reqSeq) return;
+      restoreBtn();
+      inputState.className = 'state err'; inputState.textContent = '超时';
+      toast('查询超时，请稍后重试', true);
+    };
+    xhr.send();
+  }
+
+  function showEmpty(){
+    dataArea.style.display = 'none';
+    emptyCard.classList.add('show');
+    resultArea.classList.add('show');
+  }
+
+  function onInput(){
+    var v = phone.value.replace(/\D/g,'');
+    if(phone.value !== v) phone.value = v;
+    cntLabel.textContent = v.length + ' / 11';
+    if(v.length === 11){
+      inputState.className = 'state ok'; inputState.textContent = '可查询';
+      
+      query();
+    } else {
+      
+      restoreBtn();
+      resultArea.classList.remove('show');
+      reqSeq++;
+      inputState.className = 'state idle';
+      inputState.textContent = v.length ? '继续输入' : '等待输入';
+    }
+  }
+
+  phone.addEventListener('input', onInput);
+  phone.addEventListener('keydown', function(e){ if(e.key === 'Enter') query(); });
+  btn.addEventListener('click', query);
+
+  
+  document.querySelectorAll('.fc-field input').forEach(function(inp){
+    inp.addEventListener('input', calcForecast);
+  });
+})();
+</script>
+</body>
+</html>
