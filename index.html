@@ -854,7 +854,7 @@
     var dots = '', labels = '', lastLY = null, lastLX = null;
     pts.forEach(function(p){
       if(p.fore){
-        dots += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="3.6" fill="#f59e0b" stroke="#fff" stroke-width="1.6"/>';
+        dots += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="3.6" fill="' + (p.carry ? '#2563eb' : '#f59e0b') + '" stroke="#fff" stroke-width="1.6"/>';
       } else {
         dots += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="3.4" fill="#fff" stroke="#2f6bff" stroke-width="2.4"/>';
       }
@@ -872,7 +872,8 @@
       if(ly > H - PB - 8) ly = p.y - 13;
       lastLY = ly; lastLX = p.x;
       var fill = p.fore ? (isCur ? '#ec4899' : (isCarry ? '#2563eb' : '#b45309')) : '#33415e';
-      labels += '<text x="' + p.x.toFixed(1) + '" y="' + ly + '" font-size="15" font-weight="700" fill="' + fill + '" text-anchor="middle">' + fmtUp(p.v) + '</text>';
+      var lx = Math.max(PL + 2, Math.min(p.x, W - PR - 18));
+      labels += '<text x="' + lx.toFixed(1) + '" y="' + ly + '" font-size="15" font-weight="700" fill="' + fill + '" text-anchor="middle">' + fmtUp(p.v) + '</text>';
     });
 
     
@@ -884,7 +885,8 @@
       else if(isCarry){ lbl = p.m + '月·续'; col = '#2563eb'; }
       else if(p.fore){ lbl = p.m + '月·预'; col = '#b45309'; }
       else { lbl = p.m + '月'; col = '#7c8aa5'; }
-      return '<text x="' + p.x.toFixed(1) + '" y="' + (H - 8) + '" font-size="14" font-weight="700" fill="' + col + '" text-anchor="middle">' + esc(lbl) + '</text>';
+      var tx = Math.max(PL + 2, Math.min(p.x, W - PR - 24));
+      return '<text x="' + tx.toFixed(1) + '" y="' + (H - 8) + '" font-size="14" font-weight="700" fill="' + col + '" text-anchor="middle">' + esc(lbl) + '</text>';
     }).join('');
 
     
