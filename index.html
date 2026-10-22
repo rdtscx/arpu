@@ -846,6 +846,11 @@
     }
 
     
+    var sum = 0, valid = 0;
+    data.forEach(function(d){ var v = Number(d.arpu); if(!isNaN(v)){ sum += v; valid++; } });
+    var avg = (valid > 0) ? Math.round(sum / valid * 100) / 100 : null;
+    var avgY = (avg !== null && avg > 0) ? y(avg) : -1;
+
     var dots = '', labels = '', lastLY = null;
     pts.forEach(function(p){
       if(p.fore){
@@ -856,8 +861,12 @@
       var isCarry = p.fore && p.carry;
       var isCur = p.fore && !isCarry && fcData.curMonth && String(p.m) === String(fcData.curMonth).slice(5);
       var ly = (p.y - 13 < PT) ? p.y + 18 : p.y - 13; 
+      if(avgY > 0 && Math.abs(ly - (avgY - 7)) < 24){
+        ly = avgY + 20; 
+      }
       if(lastLY !== null && Math.abs(ly - lastLY) < 26){
-        ly = (ly > p.y) ? p.y - 13 : p.y + 18; 
+        ly = (ly > p.y) ? p.y - 13 : p.y + 18;
+        if(avgY > 0 && Math.abs(ly - (avgY - 7)) < 24){ ly = avgY + 20; }
       }
       if(ly < PT + 8) ly = p.y + 18;
       if(ly > H - PB - 8) ly = p.y - 13;
@@ -879,12 +888,8 @@
     }).join('');
 
     
-    var sum = 0, valid = 0;
-    data.forEach(function(d){ var v = Number(d.arpu); if(!isNaN(v)){ sum += v; valid++; } });
-    var avg = (valid > 0) ? Math.round(sum / valid * 100) / 100 : null;
     var avgMark = '';
     if(avg !== null && avg > 0){
-      var avgY = y(avg);
       avgMark = '<line x1="' + PL + '" y1="' + avgY.toFixed(1) + '" x2="' + (W - PR) + '" y2="' + avgY.toFixed(1) + '" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4 4" opacity=".9"/>'
         + '<text x="' + (W - PR - 2) + '" y="' + (avgY - 7).toFixed(1) + '" font-size="15" font-weight="700" fill="#64748b" text-anchor="end">平均 ' + fmtUp(avg) + '</text>';
     }
