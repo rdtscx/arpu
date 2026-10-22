@@ -851,7 +851,7 @@
     var avg = (valid > 0) ? Math.round(sum / valid * 100) / 100 : null;
     var avgY = (avg !== null && avg > 0) ? y(avg) : -1;
 
-    var dots = '', labels = '', lastLY = null;
+    var dots = '', labels = '', lastLY = null, lastLX = null;
     pts.forEach(function(p){
       if(p.fore){
         dots += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="3.6" fill="#f59e0b" stroke="#fff" stroke-width="1.6"/>';
@@ -861,16 +861,16 @@
       var isCarry = p.fore && p.carry;
       var isCur = p.fore && !isCarry && fcData.curMonth && String(p.m) === String(fcData.curMonth).slice(5);
       var ly = (p.y - 13 < PT) ? p.y + 18 : p.y - 13; 
-      if(avgY > 0 && Math.abs(ly - (avgY - 7)) < 24){
+      if(avgY > 0 && p.x > 555 && Math.abs(ly - (avgY - 7)) < 24){
         ly = avgY + 20; 
       }
-      if(lastLY !== null && Math.abs(ly - lastLY) < 26){
+      if(lastLY !== null && (p.x - lastLX) < 45 && Math.abs(ly - lastLY) < 26){
         ly = (ly > p.y) ? p.y - 13 : p.y + 18;
-        if(avgY > 0 && Math.abs(ly - (avgY - 7)) < 24){ ly = avgY + 20; }
+        if(avgY > 0 && p.x > 555 && Math.abs(ly - (avgY - 7)) < 24){ ly = avgY + 20; }
       }
       if(ly < PT + 8) ly = p.y + 18;
       if(ly > H - PB - 8) ly = p.y - 13;
-      lastLY = ly;
+      lastLY = ly; lastLX = p.x;
       var fill = p.fore ? (isCur ? '#ec4899' : (isCarry ? '#2563eb' : '#b45309')) : '#33415e';
       labels += '<text x="' + p.x.toFixed(1) + '" y="' + ly + '" font-size="15" font-weight="700" fill="' + fill + '" text-anchor="middle">' + fmtUp(p.v) + '</text>';
     });
