@@ -898,18 +898,11 @@
     
     var avgMark = '';
     if(avg !== null && avg > 0){
-      avgMark = '<line x1="' + PL + '" y1="' + avgY.toFixed(1) + '" x2="' + (W - PR) + '" y2="' + avgY.toFixed(1) + '" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4 4" opacity=".9"/>';
+      avgMark = '<line x1="' + PL + '" y1="' + avgY.toFixed(1) + '" x2="' + (W - PR) + '" y2="' + avgY.toFixed(1) + '" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4 4" opacity=".9"/>'
+        + '<text class="dn" x="' + (W - PR - 2) + '" y="' + (avgY - 7).toFixed(1) + '" font-size="15" font-weight="700" fill="#64748b" text-anchor="end">平均 ' + fmtUp(avg) + '</text>';
     }
     var avgBadgeEl = document.getElementById('avg-badge');
-    if(avgBadgeEl){
-      if(avg !== null && avg > 0){
-        avgBadgeEl.textContent = '平均 ' + fmtUp(avg);
-        avgBadgeEl.className = 'state ok';
-      } else {
-        avgBadgeEl.textContent = '平均 —';
-        avgBadgeEl.className = 'state idle';
-      }
-    }
+    if(avgBadgeEl) avgBadgeEl.style.display = 'none';
 
     box.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="消费趋势折线图">'
       + '<defs><linearGradient id="tgrad" x1="0" y1="0" x2="0" y2="1">'
