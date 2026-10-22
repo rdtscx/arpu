@@ -179,6 +179,8 @@
   .tbl td .diff{font-size:12.5px;font-weight:600}
   .tbl .empty{padding:26px 6px;color:var(--faint);font-size:13.5px;text-align:center}
   .tbl tr.fc-row td{background:#fff8ec}
+  .tbl tr.fc-carry td.month,.tbl tr.fc-carry td.arpu{color:#2563eb}
+  .fc-tbl td.fc-carry{color:#2563eb}
   .tbl td.fc-fore{color:#b45309}
   .fc-dot{
     display:inline-block;width:9px;height:9px;border-radius:50%;
@@ -689,8 +691,9 @@
       var f = fore[j];
       if(!f.v) continue;
       var prevV = (j > 0) ? Number(fore[j-1].v) : (rev.length ? Number(rev[rev.length-1].arpu) : null);
-      rows += '<tr class="fc-row"><td class="month fc-fore"><span class="fc-dot"></span>' + esc(f.m) + '</td>'
-            + '<td class="arpu fc-fore">' + fmtMoney(f.v) + '</td>'
+      var carryCls = f.carry ? ' fc-carry' : '';
+      rows += '<tr class="fc-row' + carryCls + '"><td class="month fc-fore' + carryCls + '"><span class="fc-dot"></span>' + esc(f.m) + '</td>'
+            + '<td class="arpu fc-fore' + carryCls + '">' + fmtMoney(f.v) + '</td>'
             + '<td>' + diffHtml(prevV, f.v) + '</td></tr>';
     }
     $('tbody').innerHTML = rows;
@@ -717,23 +720,37 @@
     
     if(vals[vals.length - 1] > 0 && vals.length < 6){ expandForecast(); }
     var hist = fcData.arpu; 
-    var m = fcData.curMonth;  
+    var m = fcData.curMonth;
+    var mons = [];
+    for(var k=0;k<6;k++){ mons.push(m); m = nextMonth(m); }
     var filled = 0, fore = [], mRows = [];
+    function laterVal(k){
+      for(var i=k+1;i<vals.length;i++){ if(vals[i] > 0) return true; }
+      return false;
+    }
+    function prevAvail(k){
+      for(var i=k-1;i>=0;i--){ if(vals[i] > 0) return vals[i]; }
+      return hist.length ? (Number(hist[0].arpu) || 0) : 0;
+    }
     for(var k=0;k<6;k++){
+      if(k >= vals.length) break;
       var v = vals[k];
-      if(k >= vals.length) break; 
-      if(v > 0){
-        filled++;
-        fore.push({ m: m, v: v });
-        var a3 = nearAvg(vals, hist, k, 3);
-        var a6 = nearAvg(vals, hist, k, 6);
-        mRows.push({ m: m, v: v, a3: a3, a6: a6 });
+      var carry = false;
+      if(!(v > 0)){
+        if(!laterVal(k)) continue; 
+        v = prevAvail(k);
+        if(!(v > 0)) continue;
+        carry = true;
       }
-      m = nextMonth(m);           
+      if(!carry) filled++;
+      fore.push({ m: mons[k], v: v, carry: carry });
+      var a3 = nearAvg(vals, hist, k, 3);
+      var a6 = nearAvg(vals, hist, k, 6);
+      mRows.push({ m: mons[k], v: v, carry: carry, a3: a3, a6: a6 });
     }
     var rows = '';
     mRows.forEach(function(r){
-      rows += '<tr><td class="fc-m">' + esc(r.m) + '</td><td class="fc-v">' + fmtMoney(r.v) + '</td><td class="fc-a">' + avgCell(r.a3) + '</td><td class="fc-a">' + avgCell(r.a6) + '</td></tr>';
+      rows += '<tr><td class="fc-m">' + esc(r.m) + '</td><td class="fc-v' + (r.carry ? ' fc-carry' : '') + '">' + fmtMoney(r.v) + '</td><td class="fc-a">' + avgCell(r.a3) + '</td><td class="fc-a">' + avgCell(r.a6) + '</td></tr>';
     });
     $('fc-tbody').innerHTML = rows || '<tr><td colspan="4" class="fc-empty">—</td></tr>';
     $('fc-state').className = 'state ok'; $('fc-state').textContent = '已计算 ' + filled + ' 个月';
@@ -785,7 +802,7 @@
     
     var data = arpu.slice().reverse();
     
-    fore.forEach(function(f){ data.push({ month: f.m, arpu: f.v }); });
+    fore.forEach(function(f){ data.push({ month: f.m, arpu: f.v, carry: !!f.carry }); });
     var histLen = data.length - fore.length; 
     var W = 640, H = 250, PL = 40, PR = 16, PT = 24, PB = 30;
     var pw = W - PL - PR, ph = H - PT - PB;
@@ -799,7 +816,7 @@
     var pts = data.map(function(d, i){
       var v = Number(d.arpu);
       if(isNaN(v)) v = 0;
-      return { x: x(i), y: y(v), v: v, m: String(d.month || '').slice(5), fore: (i >= histLen) };
+      return { x: x(i), y: y(v), v: v, m: String(d.month || '').slice(5), fore: (i >= histLen), carry: !!d.carry };
     });
 
     
@@ -836,7 +853,8 @@
       } else {
         dots += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="3.4" fill="#fff" stroke="#2f6bff" stroke-width="2.4"/>';
       }
-      var isCur = p.fore && fcData.curMonth && String(p.m) === String(fcData.curMonth).slice(5);
+      var isCarry = p.fore && p.carry;
+      var isCur = p.fore && !isCarry && fcData.curMonth && String(p.m) === String(fcData.curMonth).slice(5);
       var ly = (p.y - 13 < PT) ? p.y + 18 : p.y - 13; 
       if(lastLY !== null && Math.abs(ly - lastLY) < 26){
         ly = (ly > p.y) ? p.y - 13 : p.y + 18; 
@@ -844,15 +862,17 @@
       if(ly < PT + 8) ly = p.y + 18;
       if(ly > H - PB - 8) ly = p.y - 13;
       lastLY = ly;
-      var fill = p.fore ? (isCur ? '#ec4899' : '#b45309') : '#33415e';
+      var fill = p.fore ? (isCur ? '#ec4899' : (isCarry ? '#2563eb' : '#b45309')) : '#33415e';
       labels += '<text x="' + p.x.toFixed(1) + '" y="' + ly + '" font-size="15" font-weight="700" fill="' + fill + '" text-anchor="middle">' + fmtUp(p.v) + '</text>';
     });
 
     
     var xlabels = pts.map(function(p){
-      var isCur = p.fore && fcData.curMonth && String(p.m) === String(fcData.curMonth).slice(5);
+      var isCarry = p.fore && p.carry;
+      var isCur = p.fore && !isCarry && fcData.curMonth && String(p.m) === String(fcData.curMonth).slice(5);
       var lbl, col;
       if(isCur){ lbl = '当前月'; col = '#ec4899'; }
+      else if(isCarry){ lbl = p.m + '月·续'; col = '#2563eb'; }
       else if(p.fore){ lbl = p.m + '月·预'; col = '#b45309'; }
       else { lbl = p.m + '月'; col = '#7c8aa5'; }
       return '<text x="' + p.x.toFixed(1) + '" y="' + (H - 8) + '" font-size="14" font-weight="700" fill="' + col + '" text-anchor="middle">' + esc(lbl) + '</text>';
