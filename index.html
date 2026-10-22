@@ -645,8 +645,10 @@
   function readForecast(){
     var arr = [];
     document.querySelectorAll('#fc-fields .fc-field input').forEach(function(inp){
-      var v = parseFloat(inp.value);
-      arr.push(isNaN(v) ? 0 : v);
+      var t = inp.value.trim();
+      var has = t !== '';
+      var v = parseFloat(t);
+      arr.push({ v: isNaN(v) ? 0 : v, has: has });
     });
     return arr;
   }
@@ -657,7 +659,7 @@
     var shown = fields.length;
     if(shown >= 6) return;
     var last = fields[shown - 1];
-    if(!(parseFloat(last.querySelector('input').value) > 0)) return; 
+    if(last.querySelector('input').value.trim() === '') return; 
     var idx = shown;
     var f = document.createElement('div');
     f.className = 'fc-field'; f.setAttribute('data-idx', idx);
@@ -689,7 +691,7 @@
     
     for(var j=0;j<fore.length;j++){
       var f = fore[j];
-      if(!f.v) continue;
+      if(!(f.v > 0) && !f.has) continue;
       var prevV = (j > 0) ? Number(fore[j-1].v) : (rev.length ? Number(rev[rev.length-1].arpu) : null);
       var carryCls = f.carry ? ' fc-carry' : '';
       rows += '<tr class="fc-row' + carryCls + '"><td class="month fc-fore' + carryCls + '"><span class="fc-dot"></span>' + esc(f.m) + '</td>'
@@ -697,7 +699,7 @@
             + '<td>' + diffHtml(prevV, f.v) + '</td></tr>';
     }
     $('tbody').innerHTML = rows;
-    var fc = fore.filter(function(f){ return f.v; }).length;
+    var fc = fore.filter(function(f){ return (f.v > 0) || f.has; }).length;
     $('r-count').textContent = (rev.length || fc) ? ('共 ' + rev.length + ' 个月' + (fc ? ' + ' + fc + ' 预计' : '')) : '暂无记录';
   }
 
@@ -709,7 +711,7 @@
       return;
     }
     var vals = readForecast();
-    var hasAny = vals.some(function(v){ return v > 0; });
+    var hasAny = vals.some(function(x){ return x.has; });
     if(!hasAny){
       fcReset();
       syncStats([]); 
@@ -718,32 +720,32 @@
       return;
     }
     
-    if(vals[vals.length - 1] > 0 && vals.length < 6){ expandForecast(); }
+    if(vals[vals.length - 1].has && vals.length < 6){ expandForecast(); }
     var hist = fcData.arpu; 
     var m = fcData.curMonth;
     var mons = [];
     for(var k=0;k<6;k++){ mons.push(m); m = nextMonth(m); }
     var filled = 0, fore = [], mRows = [];
     function laterVal(k){
-      for(var i=k+1;i<vals.length;i++){ if(vals[i] > 0) return true; }
+      for(var i=k+1;i<vals.length;i++){ if(vals[i].has) return true; }
       return false;
     }
     function prevAvail(k){
-      for(var i=k-1;i>=0;i--){ if(vals[i] > 0) return vals[i]; }
+      for(var i=k-1;i>=0;i--){ if(vals[i].has) return vals[i].v; }
       return hist.length ? (Number(hist[0].arpu) || 0) : 0;
     }
     for(var k=0;k<6;k++){
       if(k >= vals.length) break;
-      var v = vals[k];
+      var v = vals[k].v, has = vals[k].has;
       var carry = false;
-      if(!(v > 0)){
+      if(!has){
         if(!laterVal(k)) continue; 
         v = prevAvail(k);
         if(!(v > 0)) continue;
         carry = true;
       }
       if(!carry) filled++;
-      fore.push({ m: mons[k], v: v, carry: carry });
+      fore.push({ m: mons[k], v: v, carry: carry, has: has });
       var a3 = nearAvg(vals, hist, k, 3);
       var a6 = nearAvg(vals, hist, k, 6);
       mRows.push({ m: mons[k], v: v, carry: carry, a3: a3, a6: a6 });
@@ -770,7 +772,7 @@
     for(var j=n-1; j>=0; j--){
       var idx = k - j;
       var val;
-      if(idx >= 0 && vals[idx] > 0){ val = vals[idx]; prevVal = val; }        
+      if(idx >= 0 && vals[idx].has){ val = vals[idx].v; prevVal = val; }        
       else if(idx >= 0){                                                    
         if(prevVal !== null){ val = prevVal; estimated = true; }
         else if(hi < hist.length){ val = Number(hist[hi].arpu) || 0; prevVal = val; hi++; }
