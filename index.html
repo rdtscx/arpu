@@ -987,6 +987,7 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
 
 
   var nativeDownUntil = 0;
+  var proxyDownUntil = 0;
 
 
   var CACHE_KEY = 'arpu_cache_v1';
@@ -1039,7 +1040,6 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
     btnTxt.textContent = '查询中';
     inputState.className = 'state idle'; inputState.textContent = '查询中';
 
-
     var cached = cacheGet(num);
     if(cached){
       if(mySeq !== reqSeq) return;
@@ -1047,37 +1047,65 @@ var DOWN_MEMO_MS = 10 * 60 * 1000;
       return;
     }
 
+    var proxyRound = USE_PROXY && Date.now() >= proxyDownUntil;
+    var eps = buildEps(num, proxyRound);
+    if(!eps.length){ failAll(); return; }
+    runRound(eps, num, mySeq, function(){
+      if(proxyRound){
+        proxyDownUntil = Date.now() + DOWN_MEMO_MS;
+        var eps2 = buildEps(num, false);
+        if(!eps2.length){ failAll(); return; }
+        runRound(eps2, num, mySeq, failAll);
+      } else {
+        failAll();
+      }
+    });
+  }
 
-    var eps = [
-      {
+  function markNativeDown(){ nativeDownUntil = Date.now() + DOWN_MEMO_MS; }
+
+  function buildEps(num, proxy){
+    var enc = encodeURIComponent(num);
+    var list = [];
+    var nativeOk = Date.now() >= nativeDownUntil;
+    if(proxy){
+      if(nativeOk) list.push({
         id: 'native', name: '原生',
-        url: USE_PROXY
-          ? PROXY_URL + '?phone=' + encodeURIComponent(num) + '&src=native'
-          : NATIVE_API + '?submitPhoneNO=' + encodeURIComponent(num) + '&submitWarePackageId=A1000529&submitChannel=app_share&submitCode=WWFSX001570&submitEmpCode=WWFSX001570&nbc=ddf05d72a82e5df6698124e53faf3fb9',
+        url: PROXY_URL + '?phone=' + enc + '&src=native',
         check: function(res){ return !!(res && res.errorCode === 'success'); },
         parse: parseNative
-      },
-      {
+      });
+      list.push({
         id: 'backup', name: '备用',
-        url: USE_PROXY
-          ? PROXY_URL + '?phone=' + encodeURIComponent(num) + '&src=backup'
-          : BACKUP_API + '?phone_no=' + encodeURIComponent(num),
+        url: PROXY_URL + '?phone=' + enc + '&src=backup',
         check: function(res){ return !!(res && res.code === 100); },
         parse: function(res){ return { arpu: res.arpu || [], avg_3: res.avg_3, avg_6: res.avg_6 }; }
-      }
-    ];
+      });
+    } else {
+      if(nativeOk) list.push({
+        id: 'native', name: '原生',
+        url: NATIVE_API + '?submitPhoneNO=' + enc + '&submitWarePackageId=A1000529&submitChannel=app_share&submitCode=WWFSX001570&submitEmpCode=WWFSX001570&nbc=ddf05d72a82e5df6698124e53faf3fb9',
+        check: function(res){ return !!(res && res.errorCode === 'success'); },
+        parse: parseNative
+      });
+      list.push({
+        id: 'backup', name: '备用',
+        url: BACKUP_API + '?phone_no=' + enc,
+        check: function(res){ return !!(res && res.code === 100); },
+        parse: function(res){ return { arpu: res.arpu || [], avg_3: res.avg_3, avg_6: res.avg_6 }; }
+      });
+    }
+    return list;
+  }
 
-
-    var list = eps.filter(function(e){ return !(e.id === 'native' && Date.now() < nativeDownUntil); });
-    if(!list.length){ failAll(); return; }
-
-    var done = false, pending = list.length;
-    function markNativeDown(){ nativeDownUntil = Date.now() + DOWN_MEMO_MS; }
+  function runRound(eps, num, mySeq, onAllFail){
+    var done = false, pending = eps.length;
+    if(!pending){ onAllFail(); return; }
     function settle(){
       pending--;
-      if(pending <= 0 && !done) failAll();
+      if(pending <= 0 && !done) onAllFail();
     }
-    list.forEach(function(e){
+    eps.forEach(function(e){
       request(e.url).then(function(txt){
         if(done || mySeq !== reqSeq) return;
         var res;
