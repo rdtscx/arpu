@@ -458,14 +458,17 @@
 (function(){
   "use strict";
   // === 配置区域 ===
-// 查询优先级：优先调用北京移动原生接口，失效(超时/网络错/返回异常)自动回退到备用接口
-var USE_PROXY = true;             // 原生接口是否走本地代理(推荐，规避跨域)
+// 查询策略：并行抢答，优先北京移动原生接口；失效自动回退备用接口
+var USE_PROXY = true;             // 是否全部走本地代理(规避跨域，推荐)
 var PROXY_URL = '/api/proxy.php'; // 代理脚本地址（需部署在你自己的服务器上）
-var NATIVE_API = 'http://ysmapp.bj.10086.cn/app/channel-web/busiCore/customerValidateAndConsumption.action'; // 第一优先：移动原生接口
-var BACKUP_API = 'https://arpu.151365.cc/check'; // 备用接口：第三方封装
+var NATIVE_API = 'http://ysmapp.bj.10086.cn/app/channel-web/busiCore/customerValidateAndConsumption.action'; // 移动原生接口
+var BACKUP_API = 'https://arpu.151365.cc/check'; // 备用接口
+var CACHE_TTL = 24 * 60 * 60 * 1000; // 同号结果缓存有效期(ms)
+var DOWN_MEMO_MS = 10 * 60 * 1000;   // 原生接口失效后的跳过记忆时长(ms)
 // ===============
   var $ = function(id){ return document.getElementById(id); };
   var phone = $('phone'), btn = $('btn'), btnTxt = $('btn-txt');
+  var badge = $('api-badge');
   var resultArea = $('resultArea'), dataArea = $('dataArea'), emptyCard = $('emptyCard');
   var tbody = $('tbody'), cntLabel = $('cnt-label'), inputState = $('input-state');
   var reqSeq = 0; 
@@ -959,17 +962,62 @@ var BACKUP_API = 'https://arpu.151365.cc/check'; // 备用接口：第三方封�
   }
 
   // 单一 GET 请求封装
-  function request(url, cb){
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', url, true);
-    xhr.timeout = 20000;
-    xhr.onload = function(){ cb(null, xhr.responseText); };
-    xhr.onerror = function(){ cb('network'); };
-    xhr.ontimeout = function(){ cb('timeout'); };
-    xhr.send();
+  // 单一 GET 请求封装：fetch + 20s 超时，返回 Promise<string>
+  function request(url){
+    return new Promise(function(resolve, reject){
+      var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var timer = setTimeout(function(){
+        if(ctrl) ctrl.abort();
+        reject('timeout');
+      }, 20000);
+      fetch(url, { signal: ctrl ? ctrl.signal : undefined })
+        .then(function(r){ return r.text(); })
+        .then(function(txt){ clearTimeout(timer); resolve(txt); })
+        .catch(function(e){ clearTimeout(timer); reject('network'); });
+    });
   }
 
   // 查询入口：按优先级依次尝试接口，成功即止，全部失败才报错
+  var nativeDownUntil = 0; // 原生接口失败记忆：此时间前跳过原生
+
+  // 同号结果缓存：TTL 内直接命中，避免重复打接口
+  var CACHE_KEY = 'arpu_cache_v1';
+  function cacheGet(num){
+    try{
+      var all = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+      var it = all[num];
+      if(it && (Date.now() - it.t) < CACHE_TTL) return it;
+    }catch(e){}
+    return null;
+  }
+  function cacheSet(num, obj){
+    try{
+      var all = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+      all[num] = { t: Date.now(), data: obj.data, src: obj.src };
+      localStorage.setItem(CACHE_KEY, JSON.stringify(all));
+    }catch(e){}
+  }
+
+  // 查询成功收尾：渲染 + 更新接口徽标 + 落缓存(空结果不缓存)
+  function succeed(data, num, src, fromCache){
+    restoreBtn();
+    render(data, num);
+    emptyCard.classList.remove('show');
+    dataArea.style.display = 'block';
+    resultArea.classList.add('show');
+    inputState.className = 'state ok'; inputState.textContent = '查询成功';
+    badge.textContent = '接口 · ' + src;
+    if(!fromCache && data && data.arpu && data.arpu.length) cacheSet(num, { data: data, src: src });
+  }
+
+  function failAll(){
+    restoreBtn();
+    showEmpty();
+    inputState.className = 'state err'; inputState.textContent = '查询失败';
+    toast('接口均不可用，请稍后重试', true);
+  }
+
+  // 查询入口：缓存命中直接渲染；否则两端接口并行抢答，先成功者胜
   function query(){
     var num = phone.value.trim();
     if(num.length !== 11){
@@ -983,52 +1031,61 @@ var BACKUP_API = 'https://arpu.151365.cc/check'; // 备用接口：第三方封�
     btnTxt.textContent = '查询中';
     inputState.className = 'state idle'; inputState.textContent = '查询中';
 
-    // 接口候选队列（按优先级排序）
-    var attempts = [
+    // 1. 缓存命中
+    var cached = cacheGet(num);
+    if(cached){
+      if(mySeq !== reqSeq) return;
+      succeed(cached.data, num, '缓存', true);
+      return;
+    }
+
+    // 2. 接口列表（配置化）：需要时在此增删
+    var eps = [
       {
-        name: '移动原生',
+        id: 'native', name: '原生',
         url: USE_PROXY
-          ? PROXY_URL + '?phone=' + encodeURIComponent(num)
+          ? PROXY_URL + '?phone=' + encodeURIComponent(num) + '&src=native'
           : NATIVE_API + '?submitPhoneNO=' + encodeURIComponent(num) + '&submitWarePackageId=A1000529&submitChannel=app_share&submitCode=WWFSX001570&submitEmpCode=WWFSX001570&nbc=ddf05d72a82e5df6698124e53faf3fb9',
         check: function(res){ return !!(res && res.errorCode === 'success'); },
         parse: parseNative
       },
       {
-        name: '备用接口',
-        url: BACKUP_API + '?phone_no=' + encodeURIComponent(num),
+        id: 'backup', name: '备用',
+        url: USE_PROXY
+          ? PROXY_URL + '?phone=' + encodeURIComponent(num) + '&src=backup'
+          : BACKUP_API + '?phone_no=' + encodeURIComponent(num),
         check: function(res){ return !!(res && res.code === 100); },
         parse: function(res){ return { arpu: res.arpu || [], avg_3: res.avg_3, avg_6: res.avg_6 }; }
       }
     ];
 
-    (function tryNext(idx){
-      if(mySeq !== reqSeq) return;
-      if(idx >= attempts.length){
-        // 全部接口均不可用
-        restoreBtn();
-        showEmpty();
-        inputState.className = 'state err'; inputState.textContent = '查询失败';
-        toast('接口均不可用，请稍后重试', true);
-        return;
-      }
-      var a = attempts[idx];
-      request(a.url, function(err, txt){
-        if(mySeq !== reqSeq) return;
-        if(err || !txt){ tryNext(idx + 1); return; } // 网络/超时/空响应 → 换下一个
+    // 3. 健康记忆：原生在记忆期内直接跳过
+    var list = eps.filter(function(e){ return !(e.id === 'native' && Date.now() < nativeDownUntil); });
+    if(!list.length){ failAll(); return; }
+
+    var done = false, pending = list.length;
+    function markNativeDown(){ nativeDownUntil = Date.now() + DOWN_MEMO_MS; }
+    function settle(){
+      pending--;
+      if(pending <= 0 && !done) failAll();
+    }
+    list.forEach(function(e){
+      request(e.url).then(function(txt){
+        if(done || mySeq !== reqSeq) return;
         var res;
-        try{ res = JSON.parse(txt); }catch(e){ res = null; }
-        if(!a.check(res)){ tryNext(idx + 1); return; } // 返回非成功 → 换下一个
+        try{ res = JSON.parse(txt); }catch(err){ res = null; }
+        if(!res || !e.check(res)){ if(e.id === 'native') markNativeDown(); settle(); return; }
         var data;
-        try{ data = a.parse(res, num); }catch(e){ tryNext(idx + 1); return; } // 解析失败 → 换下一个
-        // 成功
-        restoreBtn();
-        render(data, num);
-        emptyCard.classList.remove('show');
-        dataArea.style.display = 'block';
-        resultArea.classList.add('show');
-        inputState.className = 'state ok'; inputState.textContent = '查询成功';
+        try{ data = e.parse(res, num); }catch(err){ data = null; }
+        if(!data){ if(e.id === 'native') markNativeDown(); settle(); return; }
+        done = true;
+        succeed(data, num, e.name, false);
+      }).catch(function(){
+        if(done || mySeq !== reqSeq) return;
+        if(e.id === 'native') markNativeDown();
+        settle();
       });
-    })(0);
+    });
   }
 
   function showEmpty(){
