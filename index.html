@@ -552,7 +552,7 @@
     
     var fieldsBox = document.getElementById('fc-fields');
     var firstField = fieldsBox.querySelector('.fc-field');
-    var m0 = fcData.has ? fcMonthN(fcData.curMonth, 1) : '—';
+    var m0 = fcData.has ? fcMonthN(fcData.curMonth, 0) : '—';
     firstField.querySelector('input').value = '';
     firstField.setAttribute('data-idx', '0');
     firstField.querySelector('input').setAttribute('data-k', '0');
@@ -659,7 +659,7 @@
     var idx = shown;
     var f = document.createElement('div');
     f.className = 'fc-field'; f.setAttribute('data-idx', idx);
-    var m = (fcData.curMonth ? fcMonthN(fcData.curMonth, idx + 1) : '—');
+    var m = (fcData.curMonth ? fcMonthN(fcData.curMonth, idx) : '—');
     f.innerHTML = '<div class="fc-label">未来 ' + (idx + 1) + ' 月 <span class="fc-memo" id="fc-m' + (idx + 1) + '">' + m + ' 预测</span></div>'
       + '<div class="fc-input"><span class="fc-pre">¥</span><input data-k="' + idx + '" type="text" inputmode="decimal" placeholder="预计消费"><span class="fc-post">元</span></div>';
     document.getElementById('fc-fields').appendChild(f);
@@ -722,14 +722,14 @@
     for(var k=0;k<6;k++){
       var v = vals[k];
       if(k >= vals.length) break; 
+      if(v > 0){
+        filled++;
+        fore.push({ m: m, v: v });
+        var a3 = nearAvg(vals, hist, k, 3);
+        var a6 = nearAvg(vals, hist, k, 6);
+        mRows.push({ m: m, v: v, a3: a3, a6: a6 });
+      }
       m = nextMonth(m);           
-      if(!(v > 0)) continue;      
-      filled++;
-      fore.push({ m: m, v: v });
-      
-      var a3 = nearAvg(vals, hist, k, 3);
-      var a6 = nearAvg(vals, hist, k, 6);
-      mRows.push({ m: m, v: v, a3: a3, a6: a6 });
     }
     var rows = '';
     mRows.forEach(function(r){
