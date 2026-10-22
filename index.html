@@ -660,7 +660,7 @@
     var f = document.createElement('div');
     f.className = 'fc-field'; f.setAttribute('data-idx', idx);
     var m = (fcData.curMonth ? fcMonthN(fcData.curMonth, idx) : '—');
-    f.innerHTML = '<div class="fc-label">未来 ' + idx + ' 月 <span class="fc-memo" id="fc-m' + (idx + 1) + '">' + m + ' 预测</span></div>'
+    f.innerHTML = '<div class="fc-label">未来 ' + idx + ' 月 <span class="fc-memo" id="fc-m' + idx + '">' + m + ' 预测</span></div>'
       + '<div class="fc-input"><span class="fc-pre">¥</span><input data-k="' + idx + '" type="text" inputmode="decimal" placeholder="预计消费"><span class="fc-post">元</span></div>';
     document.getElementById('fc-fields').appendChild(f);
     f.querySelector('input').addEventListener('input', calcForecast);
