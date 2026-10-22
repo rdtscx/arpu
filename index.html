@@ -458,15 +458,12 @@
 (function(){
   "use strict";
   // === 配置区域 ===
-// 模式选择：'direct'=直连移动接口(可能受跨域限制) / 'proxy'=使用本地代理(推荐)
-var USE_PROXY = true;
-// 代理脚本地址（需部署在你自己的服务器上）
-var PROXY_URL = '/api/proxy.php';
+// 查询优先级：优先调用北京移动原生接口，失效(超时/网络错/返回异常)自动回退到备用接口
+var USE_PROXY = true;             // 原生接口是否走本地代理(推荐，规避跨域)
+var PROXY_URL = '/api/proxy.php'; // 代理脚本地址（需部署在你自己的服务器上）
+var NATIVE_API = 'http://ysmapp.bj.10086.cn/app/channel-web/busiCore/customerValidateAndConsumption.action'; // 第一优先：移动原生接口
+var BACKUP_API = 'https://arpu.151365.cc/check'; // 备用接口：第三方封装
 // ===============
-
-var API = USE_PROXY 
-    ? PROXY_URL 
-    : 'http://ysmapp.bj.10086.cn/app/channel-web/busiCore/customerValidateAndConsumption.action';
   var $ = function(id){ return document.getElementById(id); };
   var phone = $('phone'), btn = $('btn'), btnTxt = $('btn-txt');
   var resultArea = $('resultArea'), dataArea = $('dataArea'), emptyCard = $('emptyCard');
@@ -934,6 +931,45 @@ var API = USE_PROXY
       + '</svg>';
   }
 
+  // 原生接口解析：entity 为嵌套 JSON 字符串，arpu_1~arpu_6 扁平字段转数组
+  function parseNative(res, num){
+    var entity = JSON.parse(res.entity);
+    var arpuArray = [], vals = [];
+    for(var i = 1; i <= 6; i++){
+      var key = 'arpu_' + i;
+      if(entity[key] !== undefined && entity[key] !== null && entity[key] !== ''){
+        arpuArray.push({month: '', arpu: Number(entity[key])});
+        vals.push(Number(entity[key]));
+      }
+    }
+    // 生成月份标签(从当前月往前推)
+    var cur = currentMonth();
+    for(var i = 0; i < arpuArray.length; i++){
+      if(i === 0){ arpuArray[i].month = cur; }
+      else {
+        var pp = arpuArray[i-1].month.split('-');
+        var yy = +pp[0], mm = +pp[1] - 1;
+        if(mm < 1){ mm = 12; yy--; }
+        arpuArray[i].month = yy + '-' + (mm < 10 ? '0' + mm : '' + mm);
+      }
+    }
+    var avg3 = vals.length >= 3 ? (vals[0] + vals[1] + vals[2]) / 3 : null;
+    var avg6 = entity.arpu_avg6 !== undefined ? Number(entity.arpu_avg6) : null;
+    return { arpu: arpuArray, avg_3: avg3, avg_6: avg6 };
+  }
+
+  // 单一 GET 请求封装
+  function request(url, cb){
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.timeout = 20000;
+    xhr.onload = function(){ cb(null, xhr.responseText); };
+    xhr.onerror = function(){ cb('network'); };
+    xhr.ontimeout = function(){ cb('timeout'); };
+    xhr.send();
+  }
+
+  // 查询入口：按优先级依次尝试接口，成功即止，全部失败才报错
   function query(){
     var num = phone.value.trim();
     if(num.length !== 11){
@@ -947,89 +983,52 @@ var API = USE_PROXY
     btnTxt.textContent = '查询中';
     inputState.className = 'state idle'; inputState.textContent = '查询中';
 
-    var xhr = new XMLHttpRequest();
-    // 根据模式构造请求URL
-    var requestUrl = '';
-    if (USE_PROXY) {
-        // 代理模式：只传手机号，其他参数在服务器端配置
-        requestUrl = API + '?phone=' + encodeURIComponent(num);
-    } else {
-        // 直连模式：携带全部参数
-        requestUrl = API + '?submitPhoneNO=' + encodeURIComponent(num) + '&submitWarePackageId=A1000529&submitChannel=app_share&submitCode=WWFSX001570&submitEmpCode=WWFSX001570&nbc=ddf05d72a82e5df6698124e53faf3fb9';
-    }
-    xhr.open('GET', requestUrl, true);
-    xhr.timeout = 20000;
-    xhr.onload = function(){
-      
-      if(mySeq !== reqSeq) return;
-      restoreBtn();
-      var txt = (xhr.responseText || '').trim();
-      if(!txt){
-        showEmpty();
-        inputState.className = 'state err'; inputState.textContent = '无记录';
-        return;
+    // 接口候选队列（按优先级排序）
+    var attempts = [
+      {
+        name: '移动原生',
+        url: USE_PROXY
+          ? PROXY_URL + '?phone=' + encodeURIComponent(num)
+          : NATIVE_API + '?submitPhoneNO=' + encodeURIComponent(num) + '&submitWarePackageId=A1000529&submitChannel=app_share&submitCode=WWFSX001570&submitEmpCode=WWFSX001570&nbc=ddf05d72a82e5df6698124e53faf3fb9',
+        check: function(res){ return !!(res && res.errorCode === 'success'); },
+        parse: parseNative
+      },
+      {
+        name: '备用接口',
+        url: BACKUP_API + '?phone_no=' + encodeURIComponent(num),
+        check: function(res){ return !!(res && res.code === 100); },
+        parse: function(res){ return { arpu: res.arpu || [], avg_3: res.avg_3, avg_6: res.avg_6 }; }
       }
-      try{
-        var res = JSON.parse(txt);
-        if(res && res.errorCode === 'success'){
-          // 解析嵌套的 entity JSON 字符串
-          var entity = JSON.parse(res.entity);
-          // 将 arpu_1~arpu_6 扁平字段转为数组格式
-          var arpuArray = [];
-          var vals = [];
-          for(var i = 1; i <= 6; i++){
-            var key = 'arpu_' + i;
-            if(entity[key] !== undefined && entity[key] !== null && entity[key] !== ''){
-              arpuArray.push({month: '', arpu: Number(entity[key])});
-              vals.push(Number(entity[key]));
-            }
-          }
-          // 生成月份标签(从当前月往前推)
-          var cur = currentMonth();
-          for(var i = 0; i < arpuArray.length; i++){
-            if(i === 0){ arpuArray[i].month = cur; }
-            else {
-              var pp = arpuArray[i-1].month.split('-');
-              var yy = +pp[0], mm = +pp[1] - 1;
-              if(mm < 1){ mm = 12; yy--; }
-              arpuArray[i].month = yy + '-' + (mm < 10 ? '0' + mm : '' + mm);
-            }
-          }
-          // 计算 avg_3 和 avg_6 以兼容现有渲染逻辑
-          var avg3 = vals.length >= 3 ? (vals[0] + vals[1] + vals[2]) / 3 : null;
-          var avg6 = entity.arpu_avg6 !== undefined ? Number(entity.arpu_avg6) : null;
-          res.arpu = arpuArray;
-          res.avg_3 = avg3;
-          res.avg_6 = avg6;
-          render(res, num);
-          emptyCard.classList.remove('show');
-          dataArea.style.display = 'block';
-          resultArea.classList.add('show');
-          inputState.className = 'state ok'; inputState.textContent = '查询成功';
-        } else {
-          showEmpty();
-          inputState.className = 'state err'; inputState.textContent = '无记录';
-        }
-      }catch(e){
+    ];
+
+    (function tryNext(idx){
+      if(mySeq !== reqSeq) return;
+      if(idx >= attempts.length){
+        // 全部接口均不可用
+        restoreBtn();
         showEmpty();
         inputState.className = 'state err'; inputState.textContent = '查询失败';
-        toast('查询失败，请稍后重试', true);
+        toast('接口均不可用，请稍后重试', true);
+        return;
       }
-    };
-    xhr.onerror = function(){
-      if(mySeq !== reqSeq) return;
-      restoreBtn();
-      showEmpty();
-      inputState.className = 'state err'; inputState.textContent = '网络异常';
-      toast('网络异常，查询失败', true);
-    };
-    xhr.ontimeout = function(){
-      if(mySeq !== reqSeq) return;
-      restoreBtn();
-      inputState.className = 'state err'; inputState.textContent = '超时';
-      toast('查询超时，请稍后重试', true);
-    };
-    xhr.send();
+      var a = attempts[idx];
+      request(a.url, function(err, txt){
+        if(mySeq !== reqSeq) return;
+        if(err || !txt){ tryNext(idx + 1); return; } // 网络/超时/空响应 → 换下一个
+        var res;
+        try{ res = JSON.parse(txt); }catch(e){ res = null; }
+        if(!a.check(res)){ tryNext(idx + 1); return; } // 返回非成功 → 换下一个
+        var data;
+        try{ data = a.parse(res, num); }catch(e){ tryNext(idx + 1); return; } // 解析失败 → 换下一个
+        // 成功
+        restoreBtn();
+        render(data, num);
+        emptyCard.classList.remove('show');
+        dataArea.style.display = 'block';
+        resultArea.classList.add('show');
+        inputState.className = 'state ok'; inputState.textContent = '查询成功';
+      });
+    })(0);
   }
 
   function showEmpty(){
