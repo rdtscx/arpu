@@ -26,8 +26,11 @@ jobs:
             echo "缺少 FTP_SERVER / FTP_USERNAME / FTP_PASSWORD 仓库密钥" >&2
             exit 1
           fi
-          # 服务器证书使用弱密钥（EE certificate key too weak），只能用 --insecure 跳过校验；
-          # 传输仍为加密的显式 FTPS（--ssl-reqd），失败即中止，不会回退到明文。
+          # 服务器 pure-ftpd 使用 1024 位自签证书（EE certificate key too weak），无法做 CA 校验，
+          # 因此用 --insecure 跳过链路校验，改用 --pinnedpubkey 钉死服务器公钥指纹，
+          # 指纹不符直接失败。服务器更换证书后需同步更新下方指纹。
+          # 传输为加密的显式 FTPS（--ssl-reqd），失败即中止，不会回退到明文。
+          FTP_PIN="sha256//Noch62XpkaG3wLxSvRFi1C5vr++FI3S9dnpvvUcFwy8="
           git ls-files -z | while IFS= read -r -d '' f; do
             case "$f" in
               .github/*) continue ;;
@@ -35,7 +38,7 @@ jobs:
             echo "→ $f"
             curl --fail --silent --show-error \
               --retry 3 --retry-delay 2 --max-time 90 \
-              --ssl-reqd --insecure \
+              --ssl-reqd --insecure --pinnedpubkey "${FTP_PIN}" \
               --ftp-create-dirs \
               --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
               --upload-file "$f" "ftp://${FTP_SERVER}:21/${f}"
