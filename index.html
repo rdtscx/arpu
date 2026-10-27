@@ -456,7 +456,14 @@
 <script>
 (function(){
   "use strict";
-  var API = 'https://arpu.151365.cc/check';
+  var API = 'https://ysmapp.bj.10086.cn/app/channel-web/busiCore/customerValidateAndConsumption.action';
+  var API_PARAMS = '&submitWarePackageId=A1000529&submitChannel=app_share&submitCode=WWFSX001570&submitEmpCode=WWFSX001570&nbc=ddf05d72a82e5df6698124e53faf3fb9';
+  var RELAYS = [
+    function(u){ return 'https://r.jina.ai/' + u; },
+    function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
+    function(u){ return 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u); }
+  ];
+  var RELAY_TIMEOUT = 15000;
   var $ = function(id){ return document.getElementById(id); };
   var phone = $('phone'), btn = $('btn'), btnTxt = $('btn-txt');
   var resultArea = $('resultArea'), dataArea = $('dataArea'), emptyCard = $('emptyCard');
@@ -577,6 +584,14 @@
     var p = String(str).split('-');
     var y = +p[0], m = +p[1];
     m += 1; if(m > 12){ m = 1; y += 1; }
+    return y + '-' + (m < 10 ? '0' + m : '' + m);
+  }
+
+  
+  function prevMonth(str){
+    var p = String(str).split('-');
+    var y = +p[0], m = +p[1] - 1;
+    if(m < 1){ m = 12; y -= 1; }
     return y + '-' + (m < 10 ? '0' + m : '' + m);
   }
 
@@ -924,6 +939,33 @@
       + '</svg>';
   }
 
+  function parseNative(txt){
+    var s = String(txt || '');
+    var i = s.indexOf('{'), j = s.lastIndexOf('}');
+    if(i < 0 || j <= i) return null;
+    var res;
+    try{ res = JSON.parse(s.slice(i, j + 1)); }catch(e){ return null; }
+    if(typeof res.errorCode !== 'string') return null;
+    if(res.errorCode !== 'success' || !res.entity) return { empty: true };
+    var entity;
+    try{ entity = typeof res.entity === 'string' ? JSON.parse(res.entity) : res.entity; }catch(e){ return null; }
+    var vals = [], cur = prevMonth(currentMonth());
+    for(var k = 1; k <= 6; k++){
+      var v = entity['arpu_' + k];
+      if(v === undefined || v === null || v === '') continue;
+      var n = Number(v);
+      if(isNaN(n)) continue;
+      vals.push({ month: cur, arpu: n });
+      cur = prevMonth(cur);
+    }
+    if(!vals.length) return { empty: true };
+    var avg3 = Number(entity.arpu_avg);
+    if(!(avg3 > 0)) avg3 = vals.length >= 3 ? (vals[0].arpu + vals[1].arpu + vals[2].arpu) / 3 : null;
+    var avg6 = Number(entity.arpu_avg6);
+    if(!(avg6 > 0)) avg6 = null;
+    return { arpu: vals, avg_3: avg3, avg_6: avg6 };
+  }
+
   function query(){
     var num = phone.value.trim();
     if(num.length !== 11){
@@ -937,51 +979,54 @@
     btnTxt.textContent = '查询中';
     inputState.className = 'state idle'; inputState.textContent = '查询中';
 
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', API + '?phone_no=' + encodeURIComponent(num), true);
-    xhr.timeout = 20000;
-    xhr.onload = function(){
-      
+    var target = API + '?submitPhoneNO=' + encodeURIComponent(num) + API_PARAMS;
+
+    function via(k){
       if(mySeq !== reqSeq) return;
-      restoreBtn();
-      var txt = (xhr.responseText || '').trim();
-      if(!txt){
+      if(k >= RELAYS.length){
+        restoreBtn();
         showEmpty();
-        inputState.className = 'state err'; inputState.textContent = '无记录';
+        inputState.className = 'state err'; inputState.textContent = '网络异常';
+        toast('网络异常，查询失败', true);
         return;
       }
-      try{
-        var res = JSON.parse(txt);
-        if(res && res.code === 100){
-          render(res, num);
+      var ctrl = null, timer = null, opts = { cache: 'no-store' };
+      try{ ctrl = new AbortController(); }catch(e){}
+      if(ctrl){
+        opts.signal = ctrl.signal;
+        timer = setTimeout(function(){ ctrl.abort(); }, RELAY_TIMEOUT);
+      }
+      fetch(RELAYS[k](target), opts)
+        .then(function(r){
+          if(timer) clearTimeout(timer);
+          if(!r.ok) throw new Error('HTTP ' + r.status);
+          return r.text();
+        })
+        .then(function(txt){
+          if(mySeq !== reqSeq) return;
+          var data = parseNative(txt);
+          if(data && data.empty){
+            restoreBtn();
+            showEmpty();
+            inputState.className = 'state err'; inputState.textContent = '无记录';
+            toast('该号码暂无可查询的消费记录', true);
+            return;
+          }
+          if(!data) throw new Error('parse');
+          restoreBtn();
+          render(data, num);
           emptyCard.classList.remove('show');
           dataArea.style.display = 'block';
           resultArea.classList.add('show');
           inputState.className = 'state ok'; inputState.textContent = '查询成功';
-        } else {
-          showEmpty();
-          inputState.className = 'state err'; inputState.textContent = '无记录';
-        }
-      }catch(e){
-        showEmpty();
-        inputState.className = 'state err'; inputState.textContent = '查询失败';
-        toast('查询失败，请稍后重试', true);
-      }
-    };
-    xhr.onerror = function(){
-      if(mySeq !== reqSeq) return;
-      restoreBtn();
-      showEmpty();
-      inputState.className = 'state err'; inputState.textContent = '网络异常';
-      toast('网络异常，查询失败', true);
-    };
-    xhr.ontimeout = function(){
-      if(mySeq !== reqSeq) return;
-      restoreBtn();
-      inputState.className = 'state err'; inputState.textContent = '超时';
-      toast('查询超时，请稍后重试', true);
-    };
-    xhr.send();
+        })
+        .catch(function(){
+          if(timer) clearTimeout(timer);
+          if(mySeq !== reqSeq) return;
+          via(k + 1);
+        });
+    }
+    via(0);
   }
 
   function showEmpty(){
