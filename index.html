@@ -389,7 +389,7 @@
     </div>
     <div class="chan-bar" id="chanBar">
       <span class="chan" data-ch="proxy" title="自建代理（你的服务器）" role="button" tabindex="0"><i></i>自建代理</span>
-      <span class="chan" data-ch="relay" title="Jina / AllOrigins / CodeTabs 中转" role="button" tabindex="0"><i></i>跨域代理</span>
+      <span class="chan" data-ch="relay" title="Jina 中转" role="button" tabindex="0"><i></i>跨域代理</span>
       <span class="chan" data-ch="cache" title="10 分钟内的本地缓存"><i></i>缓存命中</span>
     </div>
   </div>
@@ -565,9 +565,7 @@
   function hasCustomProxy(){ return PROXY !== PROXY_DEFAULT; }
   var CHANNELS = [
     { nameFn: function(){ return hasCustomProxy() ? '自定义代理' : '自建代理'; }, json: true, build: function(u, n){ return proxyUrl(n); } },
-    { name: 'Jina 中转', build: function(u){ return 'https://r.jina.ai/' + u; } },
-    { name: 'AllOrigins', build: function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); } },
-    { name: 'CodeTabs', build: function(u){ return 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u); } }
+    { name: 'Jina 中转', build: function(u){ return 'https://r.jina.ai/' + u; } }
   ];
   var RELAY_TIMEOUT = 12000;
   var PRIMARY_TIMEOUT = 6000;
@@ -1299,8 +1297,8 @@
       restoreBtn();
       cache[num] = { txt: txt, data: data, ts: Date.now(), src: src };
       saveCache();
-      if(/中转|Jina|AllOrigins|CodeTabs/.test(src)) setChan('relay', 'on');
-      else setChan('proxy', 'on');
+      if(src === '自建代理' || src === '自定义代理') setChan('proxy', 'on');
+      else setChan('relay', 'on');
       rawShow(txt, '成功', true);
       rawSource(src);
       render(data, num);
