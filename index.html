@@ -1084,10 +1084,10 @@
     inputState.className = 'state idle'; inputState.textContent = '查询中';
     rawShow('正在请求接口…', '请求中', null);
 
-    rawSource('并行查询中…');
+    rawSource((hasCustomProxy() ? '自定义代理' : '自建代理') + '优先查询中…');
     var target = API + '?submitPhoneNO=' + encodeURIComponent(num) + API_PARAMS;
     var lastTxt = '', lastErr = '', emptyResult = null;
-    var settled = false, pending = CHANNELS.length, controllers = [];
+    var settled = false, pending = 1, controllers = [], fallbackStarted = false;
 
     function abortAll(){
       for(var i = 0; i < controllers.length; i++){
@@ -1114,6 +1114,18 @@
     function finishEmpty(txt, src){
       if(settled) return;
       if(!emptyResult) emptyResult = { txt: txt, src: src };
+    }
+
+    function showNoRecord(txt, src){
+      if(settled || mySeq !== reqSeq) return;
+      settled = true;
+      abortAll();
+      restoreBtn();
+      rawShow(txt, '无记录', false);
+      rawSource(src + '（无记录）');
+      showEmpty();
+      inputState.className = 'state err'; inputState.textContent = '无记录';
+      toast('该号码暂无可查询的消费记录', true);
     }
 
     function finalize(){
@@ -1170,34 +1182,43 @@
       return ctrl;
     }
 
-    for(var i = 0; i < CHANNELS.length; i++){
-      (function(i){
-        var ch = CHANNELS[i];
-        var name = ch.nameFn ? ch.nameFn() : ch.name;
-        var ctrl = fetchSource(ch.build(target, num), !!ch.json, function(err, txt){
-          if(settled || mySeq !== reqSeq) return;
-          if(err){
-            lastErr = err.message || lastErr;
-            trackDone();
-            return;
-          }
-          lastTxt = txt;
-          var data = parseNative(txt);
-          if(data && data.arpu){
-            finishSuccess(txt, data, name);
-            return;
-          }
-          if(data && data.empty){
-            finishEmpty(txt, name);
-            trackDone();
-            return;
-          }
-          lastErr = '返回内容无法解析';
-          trackDone();
-        });
-        if(ctrl) controllers.push(ctrl);
-      })(i);
+    function startFallbacks(){
+      if(settled || mySeq !== reqSeq || fallbackStarted) return;
+      fallbackStarted = true;
+      rawSource((hasCustomProxy() ? '自定义代理' : '自建代理') + '不可用，中转并行查询中…');
+      pending = CHANNELS.length - 1;
+      controllers = [];
+      for(var i = 1; i < CHANNELS.length; i++) startChannel(i);
     }
+
+    function startChannel(i){
+      var ch = CHANNELS[i];
+      var name = ch.nameFn ? ch.nameFn() : ch.name;
+      var ctrl = fetchSource(ch.build(target, num), !!ch.json, function(err, txt){
+        if(settled || mySeq !== reqSeq) return;
+        if(err){
+          lastErr = err.message || lastErr;
+          if(i === 0) startFallbacks(); else trackDone();
+          return;
+        }
+        lastTxt = txt;
+        var data = parseNative(txt);
+        if(data && data.arpu){
+          finishSuccess(txt, data, name);
+          return;
+        }
+        if(data && data.empty){
+          if(i === 0) showNoRecord(txt, name);
+          else { finishEmpty(txt, name); trackDone(); }
+          return;
+        }
+        lastErr = '返回内容无法解析';
+        if(i === 0) startFallbacks(); else trackDone();
+      });
+      if(ctrl) controllers.push(ctrl);
+    }
+
+    startChannel(0);
   }
 
   function showEmpty(){
