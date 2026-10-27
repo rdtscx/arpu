@@ -73,6 +73,10 @@
   .appbar .chan.on i{background:var(--ok)}
   .appbar .chan.err{color:var(--up);background:#fdecec}
   .appbar .chan.err i{background:var(--up)}
+  .appbar .chan[data-ch="proxy"],.appbar .chan[data-ch="relay"]{cursor:pointer}
+  .appbar .chan.sel{background:var(--accent-soft);color:var(--accent)}
+  .appbar .chan.on:not(.sel){background:#e7f7ee;color:var(--ok)}
+  .appbar .chan.err:not(.sel){color:var(--up);background:#fdecec}
 
   
   .main{max-width:760px;margin:0 auto;padding:18px 16px 40px}
@@ -384,8 +388,8 @@
       <div class="sub">ARPU 消费记录</div>
     </div>
     <div class="chan-bar" id="chanBar">
-      <span class="chan" data-ch="proxy" title="自建代理（你的服务器）"><i></i>自建代理</span>
-      <span class="chan" data-ch="relay" title="Jina / AllOrigins / CodeTabs 中转"><i></i>跨域代理</span>
+      <span class="chan" data-ch="proxy" title="自建代理（你的服务器）" role="button" tabindex="0"><i></i>自建代理</span>
+      <span class="chan" data-ch="relay" title="Jina / AllOrigins / CodeTabs 中转" role="button" tabindex="0"><i></i>跨域代理</span>
       <span class="chan" data-ch="cache" title="10 分钟内的本地缓存"><i></i>缓存命中</span>
     </div>
   </div>
@@ -573,6 +577,9 @@
   var tbody = $('tbody'), cntLabel = $('cnt-label'), inputState = $('input-state');
   var rawFloat = $('rawFloat'), rawState = $('rawState'), rawBody = $('rawBody'), rawSrc = $('rawSrc');
   var chanBar = $('chanBar');
+  var MODE_KEY = 'arpu_mode';
+  var mode = 'proxy';
+  try{ if(localStorage.getItem(MODE_KEY) === 'relay') mode = 'relay'; }catch(e){}
   var reqSeq = 0; 
   var cache = {};
   var CACHE_KEY = 'arpu_cache_v1';
@@ -701,6 +708,15 @@
     if(!el) return;
     el.classList.toggle('on', state === 'on');
     el.classList.toggle('err', state === 'err');
+  }
+
+  function setMode(m){
+    mode = (m === 'relay') ? 'relay' : 'proxy';
+    try{ localStorage.setItem(MODE_KEY, mode); }catch(e){}
+    var chips = chanBar.querySelectorAll('.chan[data-ch="proxy"], .chan[data-ch="relay"]');
+    for(var i = 0; i < chips.length; i++){
+      chips[i].classList.toggle('sel', chips[i].getAttribute('data-ch') === mode);
+    }
   }
 
   function checkApi(){
@@ -1263,7 +1279,8 @@
     inputState.className = 'state idle'; inputState.textContent = '查询中';
     rawShow('正在请求接口…', '请求中', null);
 
-    rawSource((hasCustomProxy() ? '自定义代理' : '自建代理') + '优先查询中…');
+    var relayOnly = (mode === 'relay');
+    rawSource(relayOnly ? '跨域代理并行查询中…' : (hasCustomProxy() ? '自定义代理' : '自建代理') + '优先查询中…');
     var target = API + '?submitPhoneNO=' + encodeURIComponent(num) + API_PARAMS;
     var lastTxt = '', lastErr = '', emptyResult = null;
     var settled = false, pending = 1, controllers = [], fallbackStarted = false;
@@ -1324,7 +1341,7 @@
       } else {
         rawShow(lastTxt || ('请求失败：' + (lastErr || '网络异常')), '失败', false);
         rawSource('全部通道失败');
-        setChan('proxy', 'err');
+        if(mode !== 'relay') setChan('proxy', 'err');
         if(fallbackStarted) setChan('relay', 'err');
         showEmpty();
         inputState.className = 'state err'; inputState.textContent = '网络异常';
@@ -1403,7 +1420,13 @@
       if(ctrl) controllers.push(ctrl);
     }
 
-    startChannel(0);
+    if(relayOnly){
+      fallbackStarted = true;
+      pending = CHANNELS.length - 1;
+      for(var k = 1; k < CHANNELS.length; k++) startChannel(k);
+    } else {
+      startChannel(0);
+    }
   }
 
   function showEmpty(){
@@ -1433,6 +1456,24 @@
   phone.addEventListener('input', onInput);
   phone.addEventListener('keydown', function(e){ if(e.key === 'Enter') query(true); });
   btn.addEventListener('click', function(){ query(true); });
+  setMode(mode);
+  chanBar.addEventListener('click', function(e){
+    var el = e.target.closest ? e.target.closest('.chan') : null;
+    if(!el) return;
+    var k = el.getAttribute('data-ch');
+    if(k !== 'proxy' && k !== 'relay') return;
+    if(mode === k) return;
+    setMode(k);
+    toast(k === 'relay' ? '已切换为跨域代理' : '已切换为自建代理');
+    if(phone.value.trim().length === 11) query(true);
+  });
+  chanBar.addEventListener('keydown', function(e){
+    if(e.key !== 'Enter' && e.key !== ' ') return;
+    var el = e.target.closest ? e.target.closest('.chan') : null;
+    if(!el) return;
+    e.preventDefault();
+    el.click();
+  });
   checkApi();
   setInterval(checkApi, 60000);
   $('rawHead').addEventListener('click', function(){ rawFloat.classList.toggle('collapsed'); });
