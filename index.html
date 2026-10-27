@@ -1167,7 +1167,7 @@
     return { arpu: vals, avg_3: avg3, avg_6: avg6 };
   }
 
-  function query(){
+  function query(force){
     var num = phone.value.trim();
     if(num.length !== 11){
       toast('请输入 11 位手机号', true);
@@ -1176,7 +1176,7 @@
     }
     var mySeq = ++reqSeq; 
     var hit = cache[num];
-    if(hit && (Date.now() - hit.ts) < CACHE_TTL){
+    if(!force && hit && (Date.now() - hit.ts) < CACHE_TTL){
       restoreBtn();
       rawShow(hit.txt, '缓存', true);
       rawSource('本地缓存 · 原：' + (hit.src || '未知'));
@@ -1355,8 +1355,8 @@
   }
 
   phone.addEventListener('input', onInput);
-  phone.addEventListener('keydown', function(e){ if(e.key === 'Enter') query(); });
-  btn.addEventListener('click', query);
+  phone.addEventListener('keydown', function(e){ if(e.key === 'Enter') query(true); });
+  btn.addEventListener('click', function(){ query(true); });
   $('rawHead').addEventListener('click', function(){ rawFloat.classList.toggle('collapsed'); });
   $('rawProxy').addEventListener('click', function(e){ e.stopPropagation(); setProxy(); });
 
