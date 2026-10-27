@@ -527,8 +527,8 @@
     toastTimer = setTimeout(function(){ t.className = 'toast'; }, 2600);
   }
 
-  function rawShow(txt, state, ok){
-    rawState.textContent = state || '';
+  function rawShow(txt, state, ok, src){
+    rawState.textContent = state ? (state + (src ? '·' + src : '')) : (src || '');
     rawFloat.classList.toggle('ok', ok === true);
     rawFloat.classList.toggle('err', ok === false);
     var s = String(txt == null ? '' : txt);
@@ -1034,64 +1034,130 @@
     rawShow('正在请求接口…', '请求中', null);
 
     var target = API + '?submitPhoneNO=' + encodeURIComponent(num) + API_PARAMS;
-    var lastTxt = '', lastErr = '';
+    var lastTxt = '', lastErr = '', emptyResult = null;
+    var pending = 2, settled = false, proxyCtrl = null, relayCtrl = null;
 
-    function via(k){
-      if(mySeq !== reqSeq) return;
-      if(k >= RELAYS.length){
-        restoreBtn();
+    function abortAll(){
+      if(proxyCtrl){ try{ proxyCtrl.abort(); }catch(e){} proxyCtrl = null; }
+      if(relayCtrl){ try{ relayCtrl.abort(); }catch(e){} relayCtrl = null; }
+    }
+
+    function finishSuccess(txt, data, src){
+      if(settled || mySeq !== reqSeq) return;
+      settled = true;
+      abortAll();
+      restoreBtn();
+      rawShow(txt, '成功', true, src);
+      render(data, num);
+      emptyCard.classList.remove('show');
+      dataArea.style.display = 'block';
+      resultArea.classList.add('show');
+      inputState.className = 'state ok'; inputState.textContent = '查询成功';
+    }
+
+    function finishEmpty(txt, src){
+      if(settled) return;
+      if(!emptyResult) emptyResult = { txt: txt, src: src };
+    }
+
+    function finalize(){
+      if(settled || mySeq !== reqSeq) return;
+      settled = true;
+      abortAll();
+      restoreBtn();
+      if(emptyResult){
+        rawShow(emptyResult.txt, '无记录', false, emptyResult.src);
+        showEmpty();
+        inputState.className = 'state err'; inputState.textContent = '无记录';
+        toast('该号码暂无可查询的消费记录', true);
+      } else {
+        rawShow(lastTxt || ('请求失败：' + (lastErr || '网络异常')), '失败', false);
         showEmpty();
         inputState.className = 'state err'; inputState.textContent = '网络异常';
-        rawShow(lastTxt || ('请求失败：' + (lastErr || '网络异常')), '失败', false);
         toast('网络异常，查询失败', true);
-        return;
       }
-      var ctrl = null, timer = null, opts = { cache: 'no-store' };
+    }
+
+    function trackDone(){
+      pending--;
+      if(pending <= 0) finalize();
+    }
+
+    function handleText(txt, src){
+      lastTxt = txt;
+      var data = parseNative(txt);
+      if(data && data.arpu){ finishSuccess(txt, data, src); return true; }
+      if(data && data.empty){ finishEmpty(txt, src); return true; }
+      return false;
+    }
+
+    function fetchSource(url, jsonOnly, cb){
+      var ctrl = null, timer = null, called = false, opts = { cache: 'no-store' };
+      function done(err, txt){
+        if(called) return;
+        called = true;
+        cb(err, txt);
+      }
       try{ ctrl = new AbortController(); }catch(e){}
       if(ctrl){
         opts.signal = ctrl.signal;
         timer = setTimeout(function(){ ctrl.abort(); }, RELAY_TIMEOUT);
       }
-      var relay = RELAYS[k];
-      fetch(relay.build(target, num), opts)
+      fetch(url, opts)
         .then(function(r){
           if(timer) clearTimeout(timer);
-          if(!r.ok){ lastErr = 'HTTP ' + r.status; throw new Error(lastErr); }
-          if(relay.json && (r.headers.get('content-type') || '').toLowerCase().indexOf('json') < 0){
-            lastErr = '转发文件不可用';
-            throw new Error(lastErr);
+          if(!r.ok) throw new Error('HTTP ' + r.status);
+          if(jsonOnly && (r.headers.get('content-type') || '').toLowerCase().indexOf('json') < 0){
+            throw new Error('转发文件不可用');
           }
           return r.text();
         })
-        .then(function(txt){
-          if(mySeq !== reqSeq) return;
-          lastTxt = txt;
-          var data = parseNative(txt);
-          if(data && data.empty){
-            restoreBtn();
-            rawShow(txt, '无记录', false);
-            showEmpty();
-            inputState.className = 'state err'; inputState.textContent = '无记录';
-            toast('该号码暂无可查询的消费记录', true);
-            return;
-          }
-          if(!data) throw new Error('返回内容无法解析');
-          restoreBtn();
-          rawShow(txt, '成功', true);
-          render(data, num);
-          emptyCard.classList.remove('show');
-          dataArea.style.display = 'block';
-          resultArea.classList.add('show');
-          inputState.className = 'state ok'; inputState.textContent = '查询成功';
-        })
+        .then(function(txt){ done(null, txt); })
         .catch(function(err){
           if(timer) clearTimeout(timer);
-          if(mySeq !== reqSeq) return;
-          if(err && err.message) lastErr = err.message;
-          via(k + 1);
+          done(err);
         });
+      return ctrl;
     }
-    via(0);
+
+    function startProxy(){
+      proxyCtrl = fetchSource(RELAYS[0].build(target, num), true, function(err, txt){
+        if(settled || mySeq !== reqSeq) return;
+        if(err){
+          lastErr = err.message || lastErr;
+          trackDone();
+          return;
+        }
+        if(handleText(txt, '本页')){
+          if(!settled) trackDone();
+          return;
+        }
+        lastErr = '返回内容无法解析';
+        trackDone();
+      });
+    }
+
+    function startRelay(k){
+      if(settled || mySeq !== reqSeq) return;
+      if(k >= RELAYS.length){ trackDone(); return; }
+      relayCtrl = fetchSource(RELAYS[k].build(target, num), false, function(err, txt){
+        if(settled || mySeq !== reqSeq) return;
+        if(err){
+          lastErr = err.message || lastErr;
+          startRelay(k + 1);
+          return;
+        }
+        if(handleText(txt, '中转')){
+          if(!settled) trackDone();
+          return;
+        }
+        lastErr = '返回内容无法解析';
+        startRelay(k + 1);
+      });
+    }
+
+    startProxy();
+    startRelay(1);
   }
 
   function showEmpty(){
