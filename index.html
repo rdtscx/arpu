@@ -61,16 +61,18 @@
   .appbar .ttl{flex:1;min-width:0}
   .appbar h1{font-size:16px;font-weight:650;letter-spacing:.3px}
   .appbar .sub{font-size:12px;color:var(--muted);margin-top:1px}
-  .appbar .badge{
-    font-size:11px;font-weight:600;color:var(--accent);
-    background:var(--accent-soft);border-radius:20px;padding:4px 10px;flex:none;
-    display:inline-flex;align-items:center;gap:6px;
+  .appbar .chan-bar{display:flex;align-items:center;gap:5px;flex:none}
+  .appbar .chan{
+    display:inline-flex;align-items:center;gap:4px;white-space:nowrap;
+    font-size:10px;font-weight:600;color:var(--muted);
+    background:rgba(27,42,74,.05);border-radius:20px;padding:3px 7px;
+    transition:color .18s, background .18s;
   }
-  .appbar .badge .bdot{width:6px;height:6px;border-radius:50%;background:var(--faint);box-shadow:0 0 0 3px rgba(170,180,200,.2);flex:none}
-  .appbar .badge.ok{color:var(--ok);background:#e7f7ee}
-  .appbar .badge.ok .bdot{background:var(--ok);box-shadow:0 0 0 3px rgba(22,163,74,.16)}
-  .appbar .badge.err{color:var(--up);background:#fdecec}
-  .appbar .badge.err .bdot{background:var(--up);box-shadow:0 0 0 3px rgba(224,46,46,.16)}
+  .appbar .chan i{width:5px;height:5px;border-radius:50%;background:var(--faint);flex:none}
+  .appbar .chan.on{color:var(--ok);background:#e7f7ee}
+  .appbar .chan.on i{background:var(--ok)}
+  .appbar .chan.err{color:var(--up);background:#fdecec}
+  .appbar .chan.err i{background:var(--up)}
 
   
   .main{max-width:760px;margin:0 auto;padding:18px 16px 40px}
@@ -334,13 +336,6 @@
     flex:none;padding:6px 11px 0;font-size:10.5px;color:var(--muted);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   }
-  .raw-float .raw-ch{display:flex;gap:6px;padding:5px 11px 2px;flex:none}
-  .raw-float .raw-ch .ch{
-    font-size:10px;font-weight:600;color:var(--muted);
-    background:rgba(27,42,74,.06);border-radius:20px;padding:1px 8px;
-    transition:color .18s, background .18s;
-  }
-  .raw-float .raw-ch .ch.on{color:var(--ok);background:#e7f7ee}
   .raw-float .raw-bd{flex:1;min-height:0;overflow:auto;padding:4px 7px 8px;overscroll-behavior:contain}
   .raw-float .raw-kv{display:flex;flex-direction:column}
   .raw-float .raw-row{display:flex;align-items:baseline;gap:8px;padding:3.5px 5px;border-radius:7px}
@@ -388,7 +383,11 @@
       <h1>话费查询</h1>
       <div class="sub">ARPU 消费记录</div>
     </div>
-    <div class="badge checking" id="api-badge"><i class="bdot"></i><span>正式映射</span></div>
+    <div class="chan-bar" id="chanBar">
+      <span class="chan" data-ch="proxy" title="自建代理（你的服务器）"><i></i>用户代理</span>
+      <span class="chan" data-ch="relay" title="Jina / AllOrigins / CodeTabs 中转"><i></i>跨域代理</span>
+      <span class="chan" data-ch="cache" title="10 分钟内的本地缓存"><i></i>缓存命中</span>
+    </div>
   </div>
 </div>
 
@@ -538,11 +537,6 @@
     <span class="raw-st" id="rawState">暂无</span>
   </div>
   <div class="raw-src" id="rawSrc">来源：—</div>
-  <div class="raw-ch" id="rawCh">
-    <span class="ch" data-ch="proxy">代理站点</span>
-    <span class="ch" data-ch="relay">国外代理</span>
-    <span class="ch" data-ch="cache">本地缓存</span>
-  </div>
   <div class="raw-bd" id="rawBody"><div class="raw-text">查询后显示本次接口返回</div></div>
 </div>
 
@@ -578,7 +572,7 @@
   var resultArea = $('resultArea'), dataArea = $('dataArea'), emptyCard = $('emptyCard');
   var tbody = $('tbody'), cntLabel = $('cnt-label'), inputState = $('input-state');
   var rawFloat = $('rawFloat'), rawState = $('rawState'), rawBody = $('rawBody'), rawSrc = $('rawSrc');
-  var rawCh = $('rawCh'), apiBadge = $('api-badge');
+  var chanBar = $('chanBar');
   var reqSeq = 0; 
   var cache = {};
   var CACHE_KEY = 'arpu_cache_v1';
@@ -700,19 +694,13 @@
 
   function rawSource(name){
     rawSrc.textContent = '来源：' + name;
-    var kind = '';
-    if(name.indexOf('本地缓存') === 0) kind = 'cache';
-    else if(/中转|Jina|AllOrigins|CodeTabs/.test(name)) kind = 'relay';
-    else if(name.indexOf('代理') >= 0) kind = 'proxy';
-    var chips = rawCh.querySelectorAll('.ch');
-    for(var i = 0; i < chips.length; i++){
-      chips[i].classList.toggle('on', chips[i].getAttribute('data-ch') === kind);
-    }
   }
 
-  function setBadge(state){
-    apiBadge.className = 'badge' + (state ? ' ' + state : '');
-    apiBadge.title = state === 'ok' ? '正式映射 · 接口已连接' : (state === 'err' ? '正式映射 · 接口未连接' : '正式映射 · 检测中');
+  function setChan(kind, state){
+    var el = chanBar.querySelector('.chan[data-ch="' + kind + '"]');
+    if(!el) return;
+    el.classList.toggle('on', state === 'on');
+    el.classList.toggle('err', state === 'err');
   }
 
   function checkApi(){
@@ -722,7 +710,7 @@
       if(done) return;
       done = true;
       try{ if(ctrl) ctrl.abort(); }catch(e){}
-      setBadge('err');
+      setChan('proxy', 'err');
     }, 4000);
     var opts = { method: 'HEAD', cache: 'no-store' };
     if(ctrl) opts.signal = ctrl.signal;
@@ -731,13 +719,13 @@
         if(done) return;
         done = true;
         clearTimeout(timer);
-        setBadge('ok');
+        setChan('proxy', 'on');
       })
       .catch(function(){
         if(done) return;
         done = true;
         clearTimeout(timer);
-        setBadge('err');
+        setChan('proxy', 'err');
       });
   }
 
@@ -1259,7 +1247,7 @@
       restoreBtn();
       rawShow(hit.txt, '缓存', true);
       rawSource('本地缓存 · 原：' + (hit.src || '未知'));
-      setBadge('ok');
+      setChan('cache', 'on');
       render(hit.data, num);
       emptyCard.classList.remove('show');
       dataArea.style.display = 'block';
@@ -1270,6 +1258,8 @@
     btn.disabled = true;
     btn.classList.add('loading');
     btnTxt.textContent = '查询中';
+    setChan('cache', '');
+    setChan('relay', '');
     inputState.className = 'state idle'; inputState.textContent = '查询中';
     rawShow('正在请求接口…', '请求中', null);
 
@@ -1292,7 +1282,8 @@
       restoreBtn();
       cache[num] = { txt: txt, data: data, ts: Date.now(), src: src };
       saveCache();
-      setBadge('ok');
+      if(/中转|Jina|AllOrigins|CodeTabs/.test(src)) setChan('relay', 'on');
+      else setChan('proxy', 'on');
       rawShow(txt, '成功', true);
       rawSource(src);
       render(data, num);
@@ -1333,7 +1324,8 @@
       } else {
         rawShow(lastTxt || ('请求失败：' + (lastErr || '网络异常')), '失败', false);
         rawSource('全部通道失败');
-        setBadge('err');
+        setChan('proxy', 'err');
+        if(fallbackStarted) setChan('relay', 'err');
         showEmpty();
         inputState.className = 'state err'; inputState.textContent = '网络异常';
         toast('网络异常，查询失败', true);
@@ -1377,6 +1369,7 @@
     function startFallbacks(){
       if(settled || mySeq !== reqSeq || fallbackStarted) return;
       fallbackStarted = true;
+      setChan('proxy', 'err');
       rawSource((hasCustomProxy() ? '自定义代理' : '自建代理') + '不可用，中转并行查询中…');
       pending = CHANNELS.length - 1;
       controllers = [];
@@ -1440,7 +1433,6 @@
   phone.addEventListener('input', onInput);
   phone.addEventListener('keydown', function(e){ if(e.key === 'Enter') query(true); });
   btn.addEventListener('click', function(){ query(true); });
-  setBadge('checking');
   checkApi();
   setInterval(checkApi, 60000);
   $('rawHead').addEventListener('click', function(){ rawFloat.classList.toggle('collapsed'); });
