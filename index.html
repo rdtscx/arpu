@@ -284,37 +284,6 @@
   .foot{max-width:760px;margin:0 auto;padding:6px 16px 30px;text-align:center;font-size:12px;color:var(--faint)}
   .foot span{display:block;margin-top:2px}
 
-  .raw-float{
-    position:fixed;left:10px;bottom:10px;z-index:25;
-    width:min(232px,60vw);max-height:26vh;
-    display:flex;flex-direction:column;overflow:hidden;
-    background:rgba(255,255,255,.5);
-    -webkit-backdrop-filter:blur(10px) saturate(160%);
-    backdrop-filter:blur(10px) saturate(160%);
-    color:var(--ink-2);
-    border:1px solid rgba(255,255,255,.85);border-radius:12px;
-    box-shadow:0 6px 20px rgba(23,45,90,.14);
-    font-size:10px;line-height:1.35;
-  }
-  .raw-float .raw-hd{
-    display:flex;align-items:center;gap:6px;flex:none;
-    padding:6px 8px;font-size:10.5px;font-weight:600;color:var(--ink);
-    background:rgba(234,241,255,.45);cursor:pointer;
-    border-bottom:1px solid rgba(231,235,242,.7);
-  }
-  .raw-float .raw-hd .dot{width:5px;height:5px;border-radius:50%;background:var(--faint);flex:none}
-  .raw-float.ok .raw-hd .dot{background:#22c55e}
-  .raw-float.err .raw-hd .dot{background:#ef4444}
-  .raw-float .raw-proxy{margin-left:auto;font-weight:400;color:var(--accent);font-size:9.5px;cursor:pointer;flex:none;padding:1px 5px;border-radius:6px;background:rgba(47,107,255,.08)}
-  .raw-float .raw-st{margin-left:6px;font-weight:400;color:var(--muted);font-size:9.5px}
-  .raw-float .raw-bd{
-    margin:0;padding:6px 8px;overflow:auto;white-space:pre-wrap;word-break:break-all;
-    flex:1;min-height:0;
-    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-    color:var(--ink-2);
-  }
-  .raw-float.collapsed .raw-bd{display:none}
-
   
   @media (min-width:768px){
     .main{padding:26px 16px 48px}
@@ -482,16 +451,6 @@
   <span>仅供个人消费查询参考 · 页面由静态 HTML 驱动</span>
 </div>
 
-<div class="raw-float" id="rawFloat">
-  <div class="raw-hd" id="rawHead">
-    <span class="dot"></span>
-    <span>接口原始数据</span>
-    <span class="raw-proxy" id="rawProxy">代理</span>
-    <span class="raw-st" id="rawState">暂无</span>
-  </div>
-  <pre class="raw-bd" id="rawBody">查询后显示本次接口返回</pre>
-</div>
-
 <div class="toast" id="toast"></div>
 
 <script>
@@ -499,31 +458,16 @@
   "use strict";
   var API = 'https://ysmapp.bj.10086.cn/app/channel-web/busiCore/customerValidateAndConsumption.action';
   var API_PARAMS = '&submitWarePackageId=A1000529&submitChannel=app_share&submitCode=WWFSX001570&submitEmpCode=WWFSX001570&nbc=ddf05d72a82e5df6698124e53faf3fb9';
-  var PROXY_KEY = 'arpu_proxy';
-  var PROXY_DEFAULT = '_proxy.php';
-  var PROXY = PROXY_DEFAULT;
-  try{
-    var savedProxy = localStorage.getItem(PROXY_KEY);
-    if(savedProxy && /^https?:\/\//i.test(savedProxy)) PROXY = savedProxy;
-  }catch(e){}
-  if(location.protocol === 'https:' && /^http:\/\//i.test(PROXY)) PROXY = PROXY_DEFAULT;
-  function proxyUrl(n){
-    return PROXY + (PROXY.indexOf('?') >= 0 ? '&' : '?') + 'phone=' + encodeURIComponent(n);
-  }
-  function hasCustomProxy(){ return PROXY !== PROXY_DEFAULT; }
-  function proxySource(){ return hasCustomProxy() ? '代理' : '本页'; }
   var RELAYS = [
-    { json: true, build: function(u, n){ return proxyUrl(n); } },
-    { build: function(u){ return 'https://r.jina.ai/' + u; } },
-    { build: function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); } },
-    { build: function(u){ return 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u); } }
+    function(u){ return 'https://r.jina.ai/' + u; },
+    function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
+    function(u){ return 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u); }
   ];
   var RELAY_TIMEOUT = 15000;
   var $ = function(id){ return document.getElementById(id); };
   var phone = $('phone'), btn = $('btn'), btnTxt = $('btn-txt');
   var resultArea = $('resultArea'), dataArea = $('dataArea'), emptyCard = $('emptyCard');
   var tbody = $('tbody'), cntLabel = $('cnt-label'), inputState = $('input-state');
-  var rawFloat = $('rawFloat'), rawState = $('rawState'), rawBody = $('rawBody');
   var reqSeq = 0; 
 
   function restoreBtn(){
@@ -539,39 +483,6 @@
     t.className = 'toast show' + (isErr ? ' err' : '');
     if(toastTimer) clearTimeout(toastTimer);
     toastTimer = setTimeout(function(){ t.className = 'toast'; }, 2600);
-  }
-
-  function rawShow(txt, state, ok, src){
-    rawState.textContent = state ? (state + (src ? '·' + src : '')) : (src || '');
-    rawFloat.classList.toggle('ok', ok === true);
-    rawFloat.classList.toggle('err', ok === false);
-    var s = String(txt == null ? '' : txt);
-    var i = s.indexOf('{'), j = s.lastIndexOf('}');
-    if(i >= 0 && j > i) s = s.slice(i, j + 1);
-    if(s.length > 4000) s = s.slice(0, 4000) + '\n…';
-    rawBody.textContent = s || '（空响应）';
-  }
-
-  function setProxy(){
-    var cur = hasCustomProxy() ? PROXY : '';
-    var v = window.prompt('境内代理地址（例如 https://你的域名/proxy.php）\n代理会收到查询号码，请使用你自己的主机。留空恢复默认。', cur);
-    if(v == null) return;
-    v = v.trim();
-    if(v && !/^https?:\/\//i.test(v)){
-      toast('代理地址需以 http(s):// 开头', true);
-      return;
-    }
-    if(v && location.protocol === 'https:' && /^http:\/\//i.test(v)){
-      toast('HTTPS 页面只能使用 HTTPS 代理', true);
-      return;
-    }
-    try{
-      if(v) localStorage.setItem(PROXY_KEY, v);
-      else localStorage.removeItem(PROXY_KEY);
-    }catch(e){}
-    PROXY = v || PROXY_DEFAULT;
-    toast(v ? '代理已保存，正在重新查询' : '已恢复默认代理');
-    if(phone.value.trim().length === 11) query();
   }
 
   function fmtMoney(n){
@@ -1067,134 +978,55 @@
     btn.classList.add('loading');
     btnTxt.textContent = '查询中';
     inputState.className = 'state idle'; inputState.textContent = '查询中';
-    rawShow('正在请求接口…', '请求中', null);
 
     var target = API + '?submitPhoneNO=' + encodeURIComponent(num) + API_PARAMS;
-    var lastTxt = '', lastErr = '', emptyResult = null;
-    var pending = 2, settled = false, proxyCtrl = null, relayCtrl = null;
 
-    function abortAll(){
-      if(proxyCtrl){ try{ proxyCtrl.abort(); }catch(e){} proxyCtrl = null; }
-      if(relayCtrl){ try{ relayCtrl.abort(); }catch(e){} relayCtrl = null; }
-    }
-
-    function finishSuccess(txt, data, src){
-      if(settled || mySeq !== reqSeq) return;
-      settled = true;
-      abortAll();
-      restoreBtn();
-      rawShow(txt, '成功', true, src);
-      render(data, num);
-      emptyCard.classList.remove('show');
-      dataArea.style.display = 'block';
-      resultArea.classList.add('show');
-      inputState.className = 'state ok'; inputState.textContent = '查询成功';
-    }
-
-    function finishEmpty(txt, src){
-      if(settled) return;
-      if(!emptyResult) emptyResult = { txt: txt, src: src };
-    }
-
-    function finalize(){
-      if(settled || mySeq !== reqSeq) return;
-      settled = true;
-      abortAll();
-      restoreBtn();
-      if(emptyResult){
-        rawShow(emptyResult.txt, '无记录', false, emptyResult.src);
-        showEmpty();
-        inputState.className = 'state err'; inputState.textContent = '无记录';
-        toast('该号码暂无可查询的消费记录', true);
-      } else {
-        rawShow(lastTxt || ('请求失败：' + (lastErr || '网络异常')), '失败', false);
+    function via(k){
+      if(mySeq !== reqSeq) return;
+      if(k >= RELAYS.length){
+        restoreBtn();
         showEmpty();
         inputState.className = 'state err'; inputState.textContent = '网络异常';
-        var msg = hasCustomProxy() ? '代理请求失败，请检查代理地址' : '境内中转不可用，点浮窗“代理”填写转发地址';
-        toast(msg, true);
+        toast('网络异常，查询失败', true);
+        return;
       }
-    }
-
-    function trackDone(){
-      pending--;
-      if(pending <= 0) finalize();
-    }
-
-    function handleText(txt, src){
-      lastTxt = txt;
-      var data = parseNative(txt);
-      if(data && data.arpu){ finishSuccess(txt, data, src); return true; }
-      if(data && data.empty){ finishEmpty(txt, src); return true; }
-      return false;
-    }
-
-    function fetchSource(url, jsonOnly, cb){
-      var ctrl = null, timer = null, called = false, opts = { cache: 'no-store' };
-      function done(err, txt){
-        if(called) return;
-        called = true;
-        cb(err, txt);
-      }
+      var ctrl = null, timer = null, opts = { cache: 'no-store' };
       try{ ctrl = new AbortController(); }catch(e){}
       if(ctrl){
         opts.signal = ctrl.signal;
         timer = setTimeout(function(){ ctrl.abort(); }, RELAY_TIMEOUT);
       }
-      fetch(url, opts)
+      fetch(RELAYS[k](target), opts)
         .then(function(r){
           if(timer) clearTimeout(timer);
           if(!r.ok) throw new Error('HTTP ' + r.status);
-          if(jsonOnly && (r.headers.get('content-type') || '').toLowerCase().indexOf('json') < 0){
-            throw new Error('转发文件不可用');
-          }
           return r.text();
         })
-        .then(function(txt){ done(null, txt); })
-        .catch(function(err){
+        .then(function(txt){
+          if(mySeq !== reqSeq) return;
+          var data = parseNative(txt);
+          if(data && data.empty){
+            restoreBtn();
+            showEmpty();
+            inputState.className = 'state err'; inputState.textContent = '无记录';
+            toast('该号码暂无可查询的消费记录', true);
+            return;
+          }
+          if(!data) throw new Error('parse');
+          restoreBtn();
+          render(data, num);
+          emptyCard.classList.remove('show');
+          dataArea.style.display = 'block';
+          resultArea.classList.add('show');
+          inputState.className = 'state ok'; inputState.textContent = '查询成功';
+        })
+        .catch(function(){
           if(timer) clearTimeout(timer);
-          done(err);
+          if(mySeq !== reqSeq) return;
+          via(k + 1);
         });
-      return ctrl;
     }
-
-    function startProxy(){
-      proxyCtrl = fetchSource(RELAYS[0].build(target, num), true, function(err, txt){
-        if(settled || mySeq !== reqSeq) return;
-        if(err){
-          lastErr = err.message || lastErr;
-          trackDone();
-          return;
-        }
-        if(handleText(txt, proxySource())){
-          if(!settled) trackDone();
-          return;
-        }
-        lastErr = '返回内容无法解析';
-        trackDone();
-      });
-    }
-
-    function startRelay(k){
-      if(settled || mySeq !== reqSeq) return;
-      if(k >= RELAYS.length){ trackDone(); return; }
-      relayCtrl = fetchSource(RELAYS[k].build(target, num), false, function(err, txt){
-        if(settled || mySeq !== reqSeq) return;
-        if(err){
-          lastErr = err.message || lastErr;
-          startRelay(k + 1);
-          return;
-        }
-        if(handleText(txt, '中转')){
-          if(!settled) trackDone();
-          return;
-        }
-        lastErr = '返回内容无法解析';
-        startRelay(k + 1);
-      });
-    }
-
-    startProxy();
-    startRelay(1);
+    via(0);
   }
 
   function showEmpty(){
@@ -1224,8 +1056,6 @@
   phone.addEventListener('input', onInput);
   phone.addEventListener('keydown', function(e){ if(e.key === 'Enter') query(); });
   btn.addEventListener('click', query);
-  $('rawHead').addEventListener('click', function(){ rawFloat.classList.toggle('collapsed'); });
-  $('rawProxy').addEventListener('click', function(e){ e.stopPropagation(); setProxy(); });
 
   
   document.querySelectorAll('.fc-field input').forEach(function(inp){
