@@ -497,10 +497,12 @@
   "use strict";
   var API = 'https://ysmapp.bj.10086.cn/app/channel-web/busiCore/customerValidateAndConsumption.action';
   var API_PARAMS = '&submitWarePackageId=A1000529&submitChannel=app_share&submitCode=WWFSX001570&submitEmpCode=WWFSX001570&nbc=ddf05d72a82e5df6698124e53faf3fb9';
+  var PROXY = '_proxy.php?phone=';
   var RELAYS = [
-    function(u){ return 'https://r.jina.ai/' + u; },
-    function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
-    function(u){ return 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u); }
+    { json: true, build: function(u, n){ return PROXY + encodeURIComponent(n); } },
+    { build: function(u){ return 'https://r.jina.ai/' + u; } },
+    { build: function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); } },
+    { build: function(u){ return 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u); } }
   ];
   var RELAY_TIMEOUT = 15000;
   var $ = function(id){ return document.getElementById(id); };
@@ -1050,10 +1052,15 @@
         opts.signal = ctrl.signal;
         timer = setTimeout(function(){ ctrl.abort(); }, RELAY_TIMEOUT);
       }
-      fetch(RELAYS[k](target), opts)
+      var relay = RELAYS[k];
+      fetch(relay.build(target, num), opts)
         .then(function(r){
           if(timer) clearTimeout(timer);
           if(!r.ok){ lastErr = 'HTTP ' + r.status; throw new Error(lastErr); }
+          if(relay.json && (r.headers.get('content-type') || '').toLowerCase().indexOf('json') < 0){
+            lastErr = '转发文件不可用';
+            throw new Error(lastErr);
+          }
           return r.text();
         })
         .then(function(txt){
