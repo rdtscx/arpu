@@ -284,6 +284,31 @@
   .foot{max-width:760px;margin:0 auto;padding:6px 16px 30px;text-align:center;font-size:12px;color:var(--faint)}
   .foot span{display:block;margin-top:2px}
 
+  .raw-float{
+    position:fixed;left:10px;bottom:10px;z-index:25;
+    width:min(250px,64vw);max-height:36vh;
+    display:flex;flex-direction:column;overflow:hidden;
+    background:rgba(27,42,74,.94);color:#dbe6ff;
+    border:1px solid rgba(255,255,255,.14);border-radius:12px;
+    box-shadow:0 8px 24px rgba(10,20,40,.28);
+    font-size:10px;line-height:1.35;
+  }
+  .raw-float .raw-hd{
+    display:flex;align-items:center;gap:6px;flex:none;
+    padding:6px 8px;font-size:10.5px;font-weight:600;color:#fff;
+    background:rgba(255,255,255,.06);cursor:pointer;
+  }
+  .raw-float .raw-hd .dot{width:5px;height:5px;border-radius:50%;background:#7c8aa5;flex:none}
+  .raw-float.ok .raw-hd .dot{background:#22c55e}
+  .raw-float.err .raw-hd .dot{background:#ef4444}
+  .raw-float .raw-st{margin-left:auto;font-weight:400;color:#9fb0d0;font-size:9.5px}
+  .raw-float .raw-bd{
+    margin:0;padding:6px 8px;overflow:auto;white-space:pre-wrap;word-break:break-all;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    color:#c9d8f5;
+  }
+  .raw-float.collapsed .raw-bd{display:none}
+
   
   @media (min-width:768px){
     .main{padding:26px 16px 48px}
@@ -451,6 +476,15 @@
   <span>仅供个人消费查询参考 · 页面由静态 HTML 驱动</span>
 </div>
 
+<div class="raw-float" id="rawFloat">
+  <div class="raw-hd" id="rawHead">
+    <span class="dot"></span>
+    <span>接口原始数据</span>
+    <span class="raw-st" id="rawState">暂无</span>
+  </div>
+  <pre class="raw-bd" id="rawBody">查询后显示本次接口返回</pre>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -468,6 +502,7 @@
   var phone = $('phone'), btn = $('btn'), btnTxt = $('btn-txt');
   var resultArea = $('resultArea'), dataArea = $('dataArea'), emptyCard = $('emptyCard');
   var tbody = $('tbody'), cntLabel = $('cnt-label'), inputState = $('input-state');
+  var rawFloat = $('rawFloat'), rawState = $('rawState'), rawBody = $('rawBody');
   var reqSeq = 0; 
 
   function restoreBtn(){
@@ -483,6 +518,17 @@
     t.className = 'toast show' + (isErr ? ' err' : '');
     if(toastTimer) clearTimeout(toastTimer);
     toastTimer = setTimeout(function(){ t.className = 'toast'; }, 2600);
+  }
+
+  function rawShow(txt, state, ok){
+    rawState.textContent = state || '';
+    rawFloat.classList.toggle('ok', ok === true);
+    rawFloat.classList.toggle('err', ok === false);
+    var s = String(txt == null ? '' : txt);
+    var i = s.indexOf('{'), j = s.lastIndexOf('}');
+    if(i >= 0 && j > i) s = s.slice(i, j + 1);
+    if(s.length > 4000) s = s.slice(0, 4000) + '\n…';
+    rawBody.textContent = s || '（空响应）';
   }
 
   function fmtMoney(n){
@@ -978,8 +1024,10 @@
     btn.classList.add('loading');
     btnTxt.textContent = '查询中';
     inputState.className = 'state idle'; inputState.textContent = '查询中';
+    rawShow('正在请求接口…', '请求中', null);
 
     var target = API + '?submitPhoneNO=' + encodeURIComponent(num) + API_PARAMS;
+    var lastTxt = '', lastErr = '';
 
     function via(k){
       if(mySeq !== reqSeq) return;
@@ -987,6 +1035,7 @@
         restoreBtn();
         showEmpty();
         inputState.className = 'state err'; inputState.textContent = '网络异常';
+        rawShow(lastTxt || ('请求失败：' + (lastErr || '网络异常')), '失败', false);
         toast('网络异常，查询失败', true);
         return;
       }
@@ -999,30 +1048,34 @@
       fetch(RELAYS[k](target), opts)
         .then(function(r){
           if(timer) clearTimeout(timer);
-          if(!r.ok) throw new Error('HTTP ' + r.status);
+          if(!r.ok){ lastErr = 'HTTP ' + r.status; throw new Error(lastErr); }
           return r.text();
         })
         .then(function(txt){
           if(mySeq !== reqSeq) return;
+          lastTxt = txt;
           var data = parseNative(txt);
           if(data && data.empty){
             restoreBtn();
+            rawShow(txt, '无记录', false);
             showEmpty();
             inputState.className = 'state err'; inputState.textContent = '无记录';
             toast('该号码暂无可查询的消费记录', true);
             return;
           }
-          if(!data) throw new Error('parse');
+          if(!data) throw new Error('返回内容无法解析');
           restoreBtn();
+          rawShow(txt, '成功', true);
           render(data, num);
           emptyCard.classList.remove('show');
           dataArea.style.display = 'block';
           resultArea.classList.add('show');
           inputState.className = 'state ok'; inputState.textContent = '查询成功';
         })
-        .catch(function(){
+        .catch(function(err){
           if(timer) clearTimeout(timer);
           if(mySeq !== reqSeq) return;
+          if(err && err.message) lastErr = err.message;
           via(k + 1);
         });
     }
@@ -1056,6 +1109,7 @@
   phone.addEventListener('input', onInput);
   phone.addEventListener('keydown', function(e){ if(e.key === 'Enter') query(); });
   btn.addEventListener('click', query);
+  $('rawHead').addEventListener('click', function(){ rawFloat.classList.toggle('collapsed'); });
 
   
   document.querySelectorAll('.fc-field input').forEach(function(inp){
