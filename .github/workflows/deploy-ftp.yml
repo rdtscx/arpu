@@ -1,0 +1,40 @@
+name: Deploy to FTP
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ftp-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Upload tracked files
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${FTP_SERVER}" ] || [ -z "${FTP_USERNAME}" ] || [ -z "${FTP_PASSWORD}" ]; then
+            echo "缺少 FTP_SERVER / FTP_USERNAME / FTP_PASSWORD 仓库密钥" >&2
+            exit 1
+          fi
+          git ls-files -z | while IFS= read -r -d '' f; do
+            case "$f" in
+              .github/*) continue ;;
+            esac
+            echo "→ $f"
+            curl --fail --silent --show-error \
+              --retry 3 --retry-delay 2 --max-time 90 \
+              --ftp-create-dirs \
+              --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+              --upload-file "$f" "ftp://${FTP_SERVER}:21/${f}"
+          done
+          echo "部署完成"
