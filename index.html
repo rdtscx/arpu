@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://a168766.xqryfh.cn" crossorigin>
+<link rel="dns-prefetch" href="//a168766.xqryfh.cn">
 <title>话费查询</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='7' fill='%232f6bff'/%3E%3Cpath d='M8 6h2.6v12H8zm5.4 0H16v12h-2.6z' fill='%23fff'/%3E%3C/svg%3E">
 <style>
@@ -514,7 +516,8 @@
     { name: 'AllOrigins', build: function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); } },
     { name: 'CodeTabs', build: function(u){ return 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u); } }
   ];
-  var RELAY_TIMEOUT = 15000;
+  var RELAY_TIMEOUT = 12000;
+  var PRIMARY_TIMEOUT = 10000;
   var $ = function(id){ return document.getElementById(id); };
   var phone = $('phone'), btn = $('btn'), btnTxt = $('btn-txt');
   var resultArea = $('resultArea'), dataArea = $('dataArea'), emptyCard = $('emptyCard');
@@ -1153,7 +1156,7 @@
       if(pending <= 0) finalize();
     }
 
-    function fetchSource(url, jsonOnly, cb){
+    function fetchSource(url, jsonOnly, cb, timeout){
       var ctrl = null, timer = null, called = false, opts = { cache: 'no-store' };
       function done(err, txt){
         if(called) return;
@@ -1163,7 +1166,7 @@
       try{ ctrl = new AbortController(); }catch(e){}
       if(ctrl){
         opts.signal = ctrl.signal;
-        timer = setTimeout(function(){ ctrl.abort(); }, RELAY_TIMEOUT);
+        timer = setTimeout(function(){ ctrl.abort(); }, timeout || RELAY_TIMEOUT);
       }
       fetch(url, opts)
         .then(function(r){
@@ -1214,7 +1217,7 @@
         }
         lastErr = '返回内容无法解析';
         if(i === 0) startFallbacks(); else trackDone();
-      });
+      }, i === 0 ? PRIMARY_TIMEOUT : RELAY_TIMEOUT);
       if(ctrl) controllers.push(ctrl);
     }
 
