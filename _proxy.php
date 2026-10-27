@@ -24,7 +24,7 @@ if (!preg_match('/^1[0-9]{10}$/', $phone)) {
 $cacheDir = rtrim(sys_get_temp_dir(), '/') . '/arpu_cache';
 $cacheFile = $cacheDir . '/arpu_v1_' . md5($phone) . '.json';
 $cacheTtl = 600;
-$staleTtl = 86400;
+$staleTtl = 21600;
 
 $cached = null;
 $cachedAge = 0;
