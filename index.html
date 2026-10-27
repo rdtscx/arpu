@@ -287,29 +287,66 @@
   .foot span{display:block;margin-top:2px}
 
   .raw-float{
-    position:fixed;left:10px;bottom:10px;z-index:25;
-    width:min(250px,64vw);max-height:36vh;
+    position:fixed;left:12px;bottom:12px;z-index:25;
+    width:min(320px,calc(100vw - 24px));max-height:38vh;
     display:flex;flex-direction:column;overflow:hidden;
-    background:rgba(27,42,74,.94);color:#dbe6ff;
-    border:1px solid rgba(255,255,255,.14);border-radius:12px;
-    box-shadow:0 8px 24px rgba(10,20,40,.28);
-    font-size:10px;line-height:1.35;
+    border-radius:var(--radius);
+    border:1px solid rgba(255,255,255,.7);
+    background:rgba(255,255,255,.62);
+    -webkit-backdrop-filter:blur(18px) saturate(170%);
+    backdrop-filter:blur(18px) saturate(170%);
+    box-shadow:0 12px 30px rgba(23,45,90,.14);
+    color:var(--ink-2);
+    font-size:11px;line-height:1.5;
+  }
+  @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+    .raw-float{background:rgba(255,255,255,.94)}
   }
   .raw-float .raw-hd{
     display:flex;align-items:center;gap:6px;flex:none;
-    padding:6px 8px;font-size:10.5px;font-weight:600;color:#fff;
-    background:rgba(255,255,255,.06);cursor:pointer;
+    padding:9px 11px;cursor:pointer;
+    font-size:11.5px;font-weight:600;color:var(--ink);
+    background:rgba(255,255,255,.34);
+    border-bottom:1px solid rgba(27,42,74,.06);
   }
-  .raw-float .raw-hd .dot{width:5px;height:5px;border-radius:50%;background:#7c8aa5;flex:none}
-  .raw-float.ok .raw-hd .dot{background:#22c55e}
-  .raw-float.err .raw-hd .dot{background:#ef4444}
-  .raw-float .raw-proxy{margin-left:auto;font-weight:400;color:#cfe0ff;font-size:9.5px;cursor:pointer;flex:none;padding:1px 5px;border-radius:6px;background:rgba(255,255,255,.1)}
-  .raw-float .raw-st{margin-left:6px;font-weight:400;color:#9fb0d0;font-size:9.5px}
-  .raw-float .raw-src{padding:0 8px 4px;font-size:9.5px;color:#9fb0d0;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .raw-float .raw-bd{
-    margin:0;padding:6px 8px;overflow:auto;white-space:pre-wrap;word-break:break-all;
+  .raw-float .raw-hd .dot{width:6px;height:6px;border-radius:50%;background:var(--faint);flex:none;box-shadow:0 0 0 3px rgba(170,180,200,.22)}
+  .raw-float.ok .raw-hd .dot{background:var(--ok);box-shadow:0 0 0 3px rgba(22,163,74,.16)}
+  .raw-float.err .raw-hd .dot{background:var(--up);box-shadow:0 0 0 3px rgba(224,46,46,.16)}
+  .raw-float .raw-proxy{
+    margin-left:auto;flex:none;cursor:pointer;
+    font-size:10.5px;font-weight:600;color:var(--accent);
+    background:var(--accent-soft);border-radius:20px;padding:2px 8px;
+  }
+  .raw-float .raw-proxy:hover{background:#dfe9ff}
+  .raw-float .raw-st{
+    flex:none;font-size:10.5px;font-weight:600;color:var(--muted);
+    background:rgba(27,42,74,.06);border-radius:20px;padding:2px 8px;
+  }
+  .raw-float.ok .raw-st{color:var(--ok);background:#e7f7ee}
+  .raw-float.err .raw-st{color:var(--up);background:#fdecec}
+  .raw-float .raw-src{
+    flex:none;padding:6px 11px 0;font-size:10.5px;color:var(--muted);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .raw-float .raw-bd{flex:1;min-height:0;overflow:auto;padding:4px 7px 8px;overscroll-behavior:contain}
+  .raw-float .raw-kv{display:flex;flex-direction:column}
+  .raw-float .raw-row{display:flex;align-items:baseline;gap:8px;padding:3.5px 5px;border-radius:7px}
+  .raw-float .raw-row+.raw-row{border-top:1px solid rgba(27,42,74,.055)}
+  .raw-float .raw-row:nth-child(even){background:rgba(255,255,255,.34)}
+  .raw-float .raw-k{
+    flex:none;max-width:52%;font-size:10.5px;color:var(--muted);
     font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-    color:#c9d8f5;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .raw-float .raw-v{
+    margin-left:auto;text-align:right;font-size:11px;font-weight:600;color:var(--ink);
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    word-break:break-all;
+  }
+  .raw-float .raw-text{
+    margin:0;padding:5px 5px 2px;font-size:10.5px;color:var(--ink-2);
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    white-space:pre-wrap;word-break:break-all;
   }
   .raw-float.collapsed .raw-bd{display:none}
 
@@ -488,7 +525,7 @@
     <span class="raw-st" id="rawState">暂无</span>
   </div>
   <div class="raw-src" id="rawSrc">来源：—</div>
-  <pre class="raw-bd" id="rawBody">查询后显示本次接口返回</pre>
+  <div class="raw-bd" id="rawBody"><div class="raw-text">查询后显示本次接口返回</div></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -542,15 +579,84 @@
     toastTimer = setTimeout(function(){ t.className = 'toast'; }, 2600);
   }
 
+  function rawKeyParts(k){
+    var m = /^(.*?)(\d+)$/.exec(k);
+    return m ? { base: m[1], num: Number(m[2]), indexed: true } : { base: k, num: 0, indexed: false };
+  }
+  function rawCmpKey(a, b){
+    var x = rawKeyParts(a), y = rawKeyParts(b);
+    if(x.base !== y.base) return x.base < y.base ? -1 : 1;
+    if(x.indexed !== y.indexed) return x.indexed ? 1 : -1;
+    return x.num - y.num;
+  }
+  function rawFlatten(data){
+    if(!data || typeof data !== 'object' || Array.isArray(data)) return [];
+    var entity = data.entity;
+    if(typeof entity === 'string'){
+      try{ entity = JSON.parse(entity); }catch(e){ entity = null; }
+    }
+    var rows = [];
+    Object.keys(data).forEach(function(k){
+      if(k === 'entity' && entity && typeof entity === 'object') return;
+      rows.push([k, data[k]]);
+    });
+    if(entity && typeof entity === 'object' && !Array.isArray(entity)){
+      Object.keys(entity).forEach(function(k){
+        var dup = rows.some(function(r){ return r[0] === k; });
+        rows.push([dup ? 'entity.' + k : k, entity[k]]);
+      });
+    }
+    return rows.sort(function(a, b){ return rawCmpKey(a[0], b[0]); });
+  }
+  function rawText(v){
+    if(v === null) return 'null';
+    if(v === undefined) return '';
+    if(typeof v === 'object'){
+      try{ return JSON.stringify(v); }catch(e){ return String(v); }
+    }
+    return String(v);
+  }
+  function rawRender(txt){
+    var s = String(txt == null ? '' : txt);
+    var i = s.indexOf('{'), j = s.lastIndexOf('}');
+    var data = null;
+    if(i >= 0 && j > i){
+      try{ data = JSON.parse(s.slice(i, j + 1)); }catch(e){ data = null; }
+    }
+    var rows = data ? rawFlatten(data) : [];
+    rawBody.textContent = '';
+    if(rows.length){
+      var kv = document.createElement('div');
+      kv.className = 'raw-kv';
+      rows.forEach(function(pair){
+        var row = document.createElement('div');
+        row.className = 'raw-row';
+        var k = document.createElement('span');
+        k.className = 'raw-k';
+        k.textContent = pair[0];
+        k.title = pair[0];
+        var v = document.createElement('span');
+        v.className = 'raw-v';
+        v.textContent = rawText(pair[1]);
+        row.appendChild(k);
+        row.appendChild(v);
+        kv.appendChild(row);
+      });
+      rawBody.appendChild(kv);
+      return;
+    }
+    var text = s.length > 4000 ? s.slice(0, 4000) + '\n…' : s;
+    var pre = document.createElement('div');
+    pre.className = 'raw-text';
+    pre.textContent = text || '（空响应）';
+    rawBody.appendChild(pre);
+  }
+
   function rawShow(txt, state, ok){
     rawState.textContent = state || '';
     rawFloat.classList.toggle('ok', ok === true);
     rawFloat.classList.toggle('err', ok === false);
-    var s = String(txt == null ? '' : txt);
-    var i = s.indexOf('{'), j = s.lastIndexOf('}');
-    if(i >= 0 && j > i) s = s.slice(i, j + 1);
-    if(s.length > 4000) s = s.slice(0, 4000) + '\n…';
-    rawBody.textContent = s || '（空响应）';
+    rawRender(txt);
   }
 
   function rawSource(name){
