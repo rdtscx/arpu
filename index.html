@@ -554,7 +554,7 @@
     { name: 'CodeTabs', build: function(u){ return 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u); } }
   ];
   var RELAY_TIMEOUT = 12000;
-  var PRIMARY_TIMEOUT = 10000;
+  var PRIMARY_TIMEOUT = 6000;
   var $ = function(id){ return document.getElementById(id); };
   var phone = $('phone'), btn = $('btn'), btnTxt = $('btn-txt');
   var resultArea = $('resultArea'), dataArea = $('dataArea'), emptyCard = $('emptyCard');
@@ -562,7 +562,27 @@
   var rawFloat = $('rawFloat'), rawState = $('rawState'), rawBody = $('rawBody'), rawSrc = $('rawSrc');
   var reqSeq = 0; 
   var cache = {};
+  var CACHE_KEY = 'arpu_cache_v1';
   var CACHE_TTL = 10 * 60 * 1000;
+  var CACHE_MAX = 20;
+  try{
+    var savedCache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+    if(savedCache && typeof savedCache === 'object'){
+      var nowTs = Date.now();
+      Object.keys(savedCache).forEach(function(k){
+        var e = savedCache[k];
+        if(e && e.data && e.ts && (nowTs - e.ts) < CACHE_TTL) cache[k] = e;
+      });
+    }
+  }catch(e){}
+  function saveCache(){
+    try{
+      var keys = Object.keys(cache).sort(function(a, b){ return cache[b].ts - cache[a].ts; }).slice(0, CACHE_MAX);
+      var out = {};
+      keys.forEach(function(k){ out[k] = cache[k]; });
+      localStorage.setItem(CACHE_KEY, JSON.stringify(out));
+    }catch(e){}
+  }
 
   function restoreBtn(){
     btn.disabled = false;
@@ -682,6 +702,7 @@
     }catch(e){}
     PROXY = v || PROXY_DEFAULT;
     cache = {};
+    try{ localStorage.removeItem(CACHE_KEY); }catch(e){}
     toast(v ? '代理已保存，正在重新查询' : '已恢复默认代理');
     if(phone.value.trim().length === 11) query();
   }
@@ -1211,6 +1232,7 @@
       abortAll();
       restoreBtn();
       cache[num] = { txt: txt, data: data, ts: Date.now(), src: src };
+      saveCache();
       rawShow(txt, '成功', true);
       rawSource(src);
       render(data, num);
