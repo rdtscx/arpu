@@ -1,0 +1,19 @@
+name: Probe US
+on:
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 美国出口探测
+        run: |
+          echo "=== 出口 IP ==="
+          curl -sS -m 15 https://api.ipify.org; echo
+          curl -sS -m 15 https://ipinfo.io/json | head -c 300; echo
+          for P in 13901011113 13901011112; do
+            echo "=== $P ==="
+            curl -sS -m 25 -w "\nHTTP=%{http_code} time=%{time_total}\n" \
+              "https://ysmapp.bj.10086.cn/app/channel-web/busiCore/customerValidateAndConsumption.action?submitPhoneNO=$P&submitWarePackageId=A1000529&submitChannel=app_share&submitCode=WWFSX001570&submitEmpCode=WWFSX001570&nbc=ddf05d72a82e5df6698124e53faf3fb9"
+            echo "=== $P via PHP 代理 ==="
+            curl -sS -m 25 -w "\nHTTP=%{http_code}\n" "https://a781927.xqryfh.cn/_proxy.php?phone=$P"
+          done
