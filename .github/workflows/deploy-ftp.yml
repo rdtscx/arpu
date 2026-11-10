@@ -15,6 +15,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: PHP 语法校验
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq php-cli >/dev/null
+          php -l _proxy.php
+
       - name: Upload tracked files
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
@@ -44,3 +51,17 @@ jobs:
               --upload-file "$f" "ftp://${FTP_SERVER}:21/${f}"
           done
           echo "部署完成"
+
+      - name: 线上冒烟测试
+        run: |
+          set -e
+          BASE="https://a781927.xqryfh.cn/_proxy.php"
+          echo "--- ping ---"
+          curl -fsS "${BASE}?ping=1"
+          echo
+          echo "--- 真实号码 ---"
+          curl -fsS "${BASE}?phone=13901011112"
+          echo
+          echo "--- CORS 头 ---"
+          curl -sSI -H "Origin: https://rdtscx.github.io" "${BASE}?ping=1" \
+            | grep -i "access-control-allow-origin"

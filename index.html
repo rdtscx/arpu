@@ -565,8 +565,8 @@
   function hasCustomProxy(){ return PROXY !== PROXY_DEFAULT; }
   var CHANNELS = [
     { nameFn: function(){ return hasCustomProxy() ? '自定义代理' : '自建代理'; }, json: true, build: function(u, n){ return proxyUrl(n); } },
-    { name: 'Jina 中转', build: function(u){ return 'https://r.jina.ai/' + u; } },
-    { name: 'CF 中转', build: function(u){ return 'https://arpu-relay.3062438329.workers.dev/?url=' + encodeURIComponent(u); } }
+    { name: '透传通道', json: true, build: function(u){ return PROXY + (PROXY.indexOf('?') >= 0 ? '&' : '?') + 'url=' + encodeURIComponent(u); } },
+    { name: '重试通道', json: true, build: function(u, n){ return proxyUrl(n) + '&_r=' + Date.now(); } }
   ];
   var RELAY_TIMEOUT = 12000;
   var PRIMARY_TIMEOUT = 6000;
