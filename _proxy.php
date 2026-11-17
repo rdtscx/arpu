@@ -39,7 +39,7 @@ const CACHE_TTL = 600;
 const STALE_TTL = 21600;
 const CONNECT_TIMEOUT = 3;
 const TOTAL_TIMEOUT = 8;
-const RATE_LIMIT = 30;          // 每个 IP 每分钟最多查询次数（ping 不计）
+const RATE_LIMIT = 60;          // 每个 IP 每分钟最多请求次数（前端双通道并发，一次查询占 2 次；ping 不计）
 const RATE_WINDOW = 60;
 const UA = 'Mozilla/5.0 (Linux; Android 13; Pixel 6) AppleWebKit/537.36'
     . ' (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
@@ -244,6 +244,40 @@ if (!function_exists('curl_init')) {
     fail(502, '服务器未启用 curl');
 }
 
+/* 单飞（singleflight）：前端并发两路请求时，只让一路回源，其余等它的结果。
+ * 没有这层保护，双通道会把上游请求量直接翻倍（源站本来就容易限流）。 */
+$sfLock = null;
+if (!$serveStale) {
+    $sfLock = @fopen($cacheFile . '.sf', 'c');
+    $owned = $sfLock && flock($sfLock, LOCK_EX | LOCK_NB);
+    if (!$owned) {
+        if ($sfLock) {
+            fclose($sfLock);
+            $sfLock = null;
+        }
+        $waitUntil = microtime(true) + 6.0;
+        while (microtime(true) < $waitUntil) {
+            usleep(100000);
+            clearstatcache(true, $cacheFile);
+            if (is_file($cacheFile) && (time() - (int) @filemtime($cacheFile)) < CACHE_TTL) {
+                $fresh = @file_get_contents($cacheFile);
+                if ($fresh !== false) {
+                    respond(200, $fresh, $rateHeaders + array('X-Cache' => 'HIT', 'X-Cache-Age' => '0'));
+                }
+            }
+        }
+        // 等不到就自己回源，避免请求一直挂在那里
+    }
+}
+
+function release_sf($fp)
+{
+    if ($fp) {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+    }
+}
+
 $ch = curl_init($target);
 curl_setopt_array($ch, array(
     CURLOPT_RETURNTRANSFER => true,
@@ -267,6 +301,7 @@ if ($body === false || $errno !== 0) {
     if ($serveStale) {
         exit;
     }
+    release_sf($sfLock);
     fail(502, '转发失败', $rateHeaders);
 }
 $decoded = json_decode($body, true);
@@ -274,6 +309,7 @@ if (!is_array($decoded) || !isset($decoded['errorCode'])) {
     if ($serveStale) {
         exit;
     }
+    release_sf($sfLock);
     fail(502, '上游返回异常', $rateHeaders);
 }
 
@@ -286,6 +322,7 @@ if ($lock) {
     flock($lock, LOCK_UN);
     fclose($lock);
 }
+release_sf($sfLock);
 
 if (!$serveStale) {
     respond($status === 200 ? 200 : 502, $body, $rateHeaders + array('X-Cache' => 'MISS'));

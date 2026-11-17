@@ -407,7 +407,6 @@
   <div class="cp-t">通道状态</div>
   <ul class="cp-l" id="chanPopList"></ul>
   <div class="cp-a">
-    <button type="button" id="chanSwitch">切换优先通道</button>
     <button type="button" id="chanClearCache">清除本地缓存</button>
   </div>
 </div>
@@ -592,8 +591,7 @@
   function proxyName(p){ return p === PROXY_DEFAULT ? '默认代理' : '自定义代理'; }
 
   // 主通道超时必须大于代理自己的上游超时（8s），否则冷缓存时客户端先放弃、
-  // 服务端还在请求，随后又发起重试，同一个号码并发打三次上游。
-  var PRIMARY_TIMEOUT = 10000;
+  // 服务端还在请求，随后又发起别的通道，同一个号码并发打上游。
   var RETRY_TIMEOUT = 12000;
   var $ = function(id){ return document.getElementById(id); };
   var phone = $('phone'), btn = $('btn'), btnTxt = $('btn-txt');
@@ -601,11 +599,6 @@
   var tbody = $('tbody'), cntLabel = $('cnt-label'), inputState = $('input-state');
   var rawFloat = $('rawFloat'), rawState = $('rawState'), rawBody = $('rawBody'), rawSrc = $('rawSrc');
   var chanBar = $('chanBar');
-  var MODE_KEY = 'arpu_mode';
-  var mode = 'proxy';
-  try{ if(localStorage.getItem(MODE_KEY) === 'relay') mode = 'relay'; }catch(e){}
-  // 只有一个代理时，「跨域优先」与「自建优先」实际打同一台主机，切换没有意义
-  if(PROXIES.length < 2) mode = 'proxy';
   var reqSeq = 0; 
   var cache = {};
   var CACHE_KEY = 'arpu_cache_v2';
@@ -762,13 +755,11 @@
     el.setAttribute('aria-label', '通道状态：' + txt);
     el.title = '通道状态：' + txt;
 
-    var sw = $('chanSwitch');
-    if(sw) sw.hidden = PROXIES.length < 2;   // 只有一个代理时没必要切换
     var list = $('chanPopList');
     if(!list) return;
     list.innerHTML = '';
     var rows = [
-      ['优先通道', mode === 'relay' ? '跨域优先' : '自建优先'],
+      ['查询方式', '双通道并发'],
       ['当前状态', txt],
       ['可用代理', PROXIES.length + ' 个'],
       ['服务端缓存', chanState.serverCache || '—']
@@ -787,12 +778,6 @@
 
   function setChan(kind, state){
     if(kind in chanState) chanState[kind] = state || '';
-    renderChanLight();
-  }
-
-  function setMode(m){
-    mode = (m === 'relay') ? 'relay' : 'proxy';
-    try{ localStorage.setItem(MODE_KEY, mode); }catch(e){}
     renderChanLight();
   }
 
@@ -1369,10 +1354,10 @@
     inputState.className = 'state idle'; inputState.textContent = '查询中';
     rawShow('正在请求接口…', '请求中', null);
 
-    var relayOnly = (mode === 'relay');
-    rawSource(relayOnly ? '跨域优先查询中…' : (hasCustomProxy() ? '自定义代理' : '默认代理') + '优先查询中…');
-    var lastTxt = '', lastErr = '', emptyResult = null;
-    var settled = false, pending = 1, controllers = [], fallbackStarted = false;
+    // 双通道并发：同时发往两条通道，哪条先返回合法数据就用哪条，其余立即中止。
+    // 只有一台代理时也并发两次 —— 服务端做 singleflight 合并，不会真的打两遍上游。
+    var empties = [], errs = [], won = false;
+    var settled = false, pending = 1, controllers = [];
 
     function abortAll(){
       for(var i = 0; i < controllers.length; i++){
@@ -1400,54 +1385,82 @@
       inputState.className = 'state ok'; inputState.textContent = '查询成功';
     }
 
-    function finishEmpty(txt, src){
-      if(settled) return;
-      if(!emptyResult) emptyResult = { txt: txt, src: src };
-    }
-
-    function showNoRecord(txt, src){
-      if(settled || mySeq !== reqSeq) return;
-      settled = true;
-      abortAll();
-      restoreBtn();
-      rawShow(txt, '无记录', false);
-      rawSource(src + '（无记录）');
-      showEmpty();
-      inputState.className = 'state err'; inputState.textContent = '无记录';
-      toast('该号码暂无可查询的消费记录', true);
-    }
-
     function finalize(){
       if(settled || mySeq !== reqSeq) return;
       settled = true;
       abortAll();
       restoreBtn();
-      if(emptyResult){
-        rawShow(emptyResult.txt, '无记录', false);
-        rawSource(emptyResult.src + '（无记录）');
+      if(empties.length){
+        // 所有通道都没给出数据：取第一个通道的原始响应展示
+        rawShow(empties[0].txt, '无记录', false);
+        rawSource(empties[0].src + '（无记录）');
         showEmpty();
         inputState.className = 'state err'; inputState.textContent = '无记录';
         toast('该号码暂无可查询的消费记录', true);
       } else {
-        rawShow(lastTxt || ('请求失败：' + (lastErr || '网络异常')), '失败', false);
+        var msg = errs.length ? errs[0] : '网络异常';
+        rawShow('请求失败：' + msg, '失败', false);
         rawSource('全部通道失败');
         setChan('proxy', 'err');
         showEmpty();
         inputState.className = 'state err'; inputState.textContent = '查询失败';
-        toast(lastErr ? ('查询失败：' + lastErr) : '网络异常，查询失败', true);
+        toast('查询失败：' + msg, true);
       }
     }
 
-    function trackDone(){
+    function finishOne(){
       pending--;
       if(pending <= 0) finalize();
     }
 
-    // 通道计划：主通道优先，失败后走第二个代理（没配就同一代理带抖动重试一次）
-    var plan = [
-      { base: PROXIES[0] || PROXY_DEFAULT, timeout: PRIMARY_TIMEOUT },
-      { base: PROXIES[1] || PROXIES[0] || PROXY_DEFAULT, timeout: RETRY_TIMEOUT }
-    ];
+    // 通道列表（自动）：按配置的代理顺序取前两个；只有一个代理时并发两次，
+    // 由服务端 singleflight 合并成一次上游请求。
+    function channelList(){
+      var out = [];
+      var ps = PROXIES.length ? PROXIES : [PROXY_DEFAULT];
+      ps.slice(0, 2).forEach(function(p, i){
+        out.push({ base: p, label: proxyName(p) + (i ? ' · 备用' : '') });
+      });
+      if(out.length === 1){
+        out.push({ base: out[0].base, label: '并发通道' });
+      }
+      return out;
+    }
+
+    function dispatch(){
+      var chs = channelList();
+      pending = chs.length;
+      rawSource('双通道并发查询中…');
+      chs.forEach(function(ch){ fire(ch); });
+    }
+
+    function fire(ch){
+      var ctrl = requestVia(ch.base, num, RETRY_TIMEOUT, function(err, txt, meta){
+        if(settled || won || mySeq !== reqSeq) return;
+        if(err){
+          errs.push(err.message || '网络异常');
+          finishOne();
+          return;
+        }
+        var data = parseNative(txt);
+        if(data && data.arpu){
+          won = true;                       // 先到先得，其余请求立即中止
+          finishSuccess(txt, data, ch.label, meta);
+          return;
+        }
+        if(data && data.empty){
+          empties.push({ txt: txt, src: ch.label });
+          finishOne();
+          return;
+        }
+        errs.push('返回内容无法解析');
+        finishOne();
+      });
+      if(ctrl) controllers.push(ctrl);
+    }
+
+    dispatch();
+  }
 
     function requestVia(base, n, timeout, cb){
       var ctrl = null, timer = null, called = false;
@@ -1496,51 +1509,7 @@
       return ctrl;
     }
 
-    function startFallbacks(){
-      if(settled || mySeq !== reqSeq || fallbackStarted) return;
-      fallbackStarted = true;
-      setChan('proxy', 'err');
-      rawSource('主通道未成功，正在重试…');
-      pending = plan.length - 1;
-      controllers = [];
-      for(var i = 1; i < plan.length; i++) startAt(i);
-    }
-
-    function startAt(i){
-      var p = plan[i];
-      var src = proxyName(p.base) + (i > 0 ? ' · 重试' : '');
-      var ctrl = requestVia(p.base, num, p.timeout, function(err, txt, meta){
-        if(settled || mySeq !== reqSeq) return;
-        if(err){
-          lastErr = err.message || lastErr;
-          if(i === 0) startFallbacks(); else trackDone();
-          return;
-        }
-        lastTxt = txt;
-        var data = parseNative(txt);
-        if(data && data.arpu){
-          finishSuccess(txt, data, src, meta);
-          return;
-        }
-        if(data && data.empty){
-          if(i === 0) showNoRecord(txt, src);
-          else { finishEmpty(txt, src); trackDone(); }
-          return;
-        }
-        lastErr = '返回内容无法解析';
-        if(i === 0) startFallbacks(); else trackDone();
-      });
-      if(ctrl) controllers.push(ctrl);
-    }
-
-    if(relayOnly){
-      fallbackStarted = true;
-      pending = plan.length - 1;
-      for(var k = 1; k < plan.length; k++) startAt(k);
-    } else {
-      startAt(0);
-    }
-  }
+    function startFallbacks(){ return; }
 
   function showEmpty(){
     dataArea.style.display = 'none';
@@ -1569,7 +1538,7 @@
   phone.addEventListener('input', onInput);
   phone.addEventListener('keydown', function(e){ if(e.key === 'Enter') query(true); });
   btn.addEventListener('click', function(){ query(true); });
-  setMode(mode);
+  renderChanLight();
   function toggleChanPop(show){
     var pop = $('chanPop');
     if(!pop) return;
@@ -1591,12 +1560,6 @@
     if(!pop || pop.hidden) return;
     if(pop.contains(e.target) || chanBar.contains(e.target)) return;
     pop.hidden = true;
-  });
-  $('chanSwitch').addEventListener('click', function(){
-    setMode(mode === 'proxy' ? 'relay' : 'proxy');
-    toast(mode === 'relay' ? '已切换为跨域优先' : '已切换为自建优先');
-    toggleChanPop(false);
-    if(phone.value.trim().length === 11) query(true);
   });
   $('chanClearCache').addEventListener('click', function(){
     clearLocalCache();
