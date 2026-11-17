@@ -616,6 +616,11 @@
     for(var i = 0; i < s.length; i++){ h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; }
     return 'p' + h.toString(36);
   }
+  // 上游响应里会回显 phone_no；写本地缓存前把号码抹掉，避免号码与账单一起留在磁盘上
+  function stripPhone(txt, num){
+    if(!txt || !num) return txt;
+    return String(txt).split(String(num)).join('***');
+  }
   try{
     localStorage.removeItem(CACHE_KEY_OLD);
     var savedCache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
@@ -1377,7 +1382,7 @@
       settled = true;
       abortAll();
       restoreBtn();
-      cache[phoneKey(num)] = { txt: txt, data: data, ts: Date.now(), src: src };
+      cache[phoneKey(num)] = { txt: stripPhone(txt, num), data: data, ts: Date.now(), src: src };
       saveCache();
       setChan('proxy', 'on');
       var cacheTag = (meta && meta.cache) ? (meta.cache + (meta.age ? (' · ' + meta.age + 's') : '')) : '';
