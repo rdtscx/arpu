@@ -604,6 +604,8 @@
   var MODE_KEY = 'arpu_mode';
   var mode = 'proxy';
   try{ if(localStorage.getItem(MODE_KEY) === 'relay') mode = 'relay'; }catch(e){}
+  // 只有一个代理时，「跨域优先」与「自建优先」实际打同一台主机，切换没有意义
+  if(PROXIES.length < 2) mode = 'proxy';
   var reqSeq = 0; 
   var cache = {};
   var CACHE_KEY = 'arpu_cache_v2';
@@ -760,6 +762,8 @@
     el.setAttribute('aria-label', '通道状态：' + txt);
     el.title = '通道状态：' + txt;
 
+    var sw = $('chanSwitch');
+    if(sw) sw.hidden = PROXIES.length < 2;   // 只有一个代理时没必要切换
     var list = $('chanPopList');
     if(!list) return;
     list.innerHTML = '';
