@@ -618,6 +618,7 @@
   }
   try{
     localStorage.removeItem(CACHE_KEY_OLD);
+    localStorage.removeItem('arpu_mode');   // 旧的「优先通道」设置已废弃（现为双通道并发）
     var savedCache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
     if(savedCache && typeof savedCache === 'object'){
       var nowTs = Date.now();
