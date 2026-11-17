@@ -70,6 +70,22 @@
   .appbar .chan.on{background:var(--ok);box-shadow:0 0 0 3px rgba(22,163,74,.14)}
   .appbar .chan.err{background:var(--up);box-shadow:0 0 0 3px rgba(224,46,46,.14)}
   .appbar .chan:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+  .chan-pop{
+    position:fixed;z-index:60;top:56px;right:12px;width:236px;padding:12px;
+    background:#fff;border:1px solid #e3e8f0;border-radius:12px;
+    box-shadow:0 10px 28px rgba(20,32,60,.14);font-size:12px;color:var(--tx);
+  }
+  .chan-pop[hidden]{display:none}
+  .chan-pop .cp-t{font-weight:650;margin-bottom:8px}
+  .chan-pop .cp-l{margin:0 0 10px;padding:0;list-style:none}
+  .chan-pop .cp-l li{display:flex;justify-content:space-between;gap:10px;padding:2px 0;color:var(--muted)}
+  .chan-pop .cp-l li b{color:var(--tx);font-weight:600}
+  .chan-pop .cp-a{display:flex;gap:8px}
+  .chan-pop .cp-a button{
+    flex:1;height:30px;border:1px solid #e3e8f0;border-radius:8px;background:#f7f9fc;
+    color:var(--tx);font-size:12px;cursor:pointer;
+  }
+  .chan-pop .cp-a button:hover{background:#eef3fb}
 
   
   .main{max-width:760px;margin:0 auto;padding:18px 16px 40px}
@@ -381,9 +397,18 @@
       <div class="sub">ARPU 消费记录</div>
     </div>
     <div class="chan-bar" id="chanBar">
-      <span class="chan" id="chanLight" role="button" tabindex="0"
-            title="待查询（点击切换通道）" aria-label="通道状态"></span>
+      <span class="chan" id="chanLight" role="button" tabindex="0" aria-haspopup="true"
+            title="待查询" aria-label="通道状态"></span>
     </div>
+  </div>
+</div>
+
+<div class="chan-pop" id="chanPop" hidden>
+  <div class="cp-t">通道状态</div>
+  <ul class="cp-l" id="chanPopList"></ul>
+  <div class="cp-a">
+    <button type="button" id="chanSwitch">切换优先通道</button>
+    <button type="button" id="chanClearCache">清除本地缓存</button>
   </div>
 </div>
 
@@ -541,27 +566,35 @@
 <script>
 (function(){
   "use strict";
-  var API = 'https://ysmapp.bj.10086.cn/app/channel-web/busiCore/customerValidateAndConsumption.action';
-  var API_PARAMS = '&submitWarePackageId=A1000529&submitChannel=app_share&submitCode=WWFSX001570&submitEmpCode=WWFSX001570&nbc=ddf05d72a82e5df6698124e53faf3fb9';
   var PROXY_KEY = 'arpu_proxy';
   var PROXY_DEFAULT = 'https://a781927.xqryfh.cn/_proxy.php';
-  var PROXY = PROXY_DEFAULT;
-  try{
-    var savedProxy = localStorage.getItem(PROXY_KEY);
-    if(savedProxy && /^https?:\/\//i.test(savedProxy)) PROXY = savedProxy;
-  }catch(e){}
-  if(location.protocol === 'https:' && /^http:\/\//i.test(PROXY)) PROXY = PROXY_DEFAULT;
-  function proxyUrl(n){
-    return PROXY + (PROXY.indexOf('?') >= 0 ? '&' : '?') + 'phone=' + encodeURIComponent(n);
+
+  // 代理地址列表：默认代理 + 可选自定义代理（自定义优先）。多个地址时可故障切换，
+  // 以后换域名/加备用代理只需改这里，不用动查询逻辑。
+  function buildProxyList(){
+    var list = [];
+    try{
+      var c = localStorage.getItem(PROXY_KEY);
+      if(c && /^https?:\/\//i.test(c)) list.push(c);
+    }catch(e){}
+    list.push(PROXY_DEFAULT);
+    var seen = {}, out = [];
+    list.forEach(function(p){
+      if(location.protocol === 'https:' && /^http:\/\//i.test(p)) return;  // 混合内容会被浏览器直接拦
+      if(seen[p]) return;
+      seen[p] = 1;
+      out.push(p);
+    });
+    return out;
   }
-  function hasCustomProxy(){ return PROXY !== PROXY_DEFAULT; }
-  var CHANNELS = [
-    { nameFn: function(){ return hasCustomProxy() ? '自定义代理' : '自建代理'; }, json: true, build: function(u, n){ return proxyUrl(n); } },
-    { name: '透传通道', json: true, build: function(u){ return PROXY + (PROXY.indexOf('?') >= 0 ? '&' : '?') + 'url=' + encodeURIComponent(u); } },
-    { name: '重试通道', json: true, build: function(u, n){ return proxyUrl(n) + '&_r=' + Date.now(); } }
-  ];
-  var RELAY_TIMEOUT = 12000;
-  var PRIMARY_TIMEOUT = 6000;
+  var PROXIES = buildProxyList();
+  function hasCustomProxy(){ return PROXIES.length > 1 && PROXIES[0] !== PROXY_DEFAULT; }
+  function proxyName(p){ return p === PROXY_DEFAULT ? '默认代理' : '自定义代理'; }
+
+  // 主通道超时必须大于代理自己的上游超时（8s），否则冷缓存时客户端先放弃、
+  // 服务端还在请求，随后又发起重试，同一个号码并发打三次上游。
+  var PRIMARY_TIMEOUT = 10000;
+  var RETRY_TIMEOUT = 12000;
   var $ = function(id){ return document.getElementById(id); };
   var phone = $('phone'), btn = $('btn'), btnTxt = $('btn-txt');
   var resultArea = $('resultArea'), dataArea = $('dataArea'), emptyCard = $('emptyCard');
@@ -573,10 +606,18 @@
   try{ if(localStorage.getItem(MODE_KEY) === 'relay') mode = 'relay'; }catch(e){}
   var reqSeq = 0; 
   var cache = {};
-  var CACHE_KEY = 'arpu_cache_v1';
+  var CACHE_KEY = 'arpu_cache_v2';
+  var CACHE_KEY_OLD = 'arpu_cache_v1';
   var CACHE_TTL = 10 * 60 * 1000;
   var CACHE_MAX = 20;
+  // 号码哈希作为缓存键：localStorage 里不再直接出现手机号（原 v1 缓存清理掉）
+  function phoneKey(n){
+    var h = 5381, s = String(n);
+    for(var i = 0; i < s.length; i++){ h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; }
+    return 'p' + h.toString(36);
+  }
   try{
+    localStorage.removeItem(CACHE_KEY_OLD);
     var savedCache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
     if(savedCache && typeof savedCache === 'object'){
       var nowTs = Date.now();
@@ -695,8 +736,14 @@
   }
 
   // 右上角只保留一个状态灯：绿=通道正常、红=异常、灰=尚未查询。
-  // 细节（当前优先通道、哪个通道正常/报错、是否命中缓存）放在 title 悬浮提示里。
-  var chanState = { proxy: '', relay: '', cache: '' };
+  // 具体信息（优先通道、服务端缓存、可清缓存）放在点开的浮层里，兼容触屏无 hover。
+  var chanState = { proxy: '', relay: '', cache: '', serverCache: '' };
+  function chanStatusText(){
+    if(chanState.proxy === 'err') return '异常';
+    if(chanState.proxy === 'on') return '正常';
+    if(chanState.cache === 'on') return '缓存';
+    return '待查询';
+  }
   function renderChanLight(){
     var el = $('chanLight');
     if(!el) return;
@@ -704,13 +751,29 @@
     var isOn = chanState.proxy === 'on' || chanState.relay === 'on' || chanState.cache === 'on';
     el.classList.toggle('err', isErr);
     el.classList.toggle('on', !isErr && isOn);
-    var parts = ['通道：' + (mode === 'relay' ? '跨域优先' : '自建优先')];
-    if(chanState.cache === 'on') parts.push('缓存命中');
-    if(chanState.proxy === 'on') parts.push('自建正常');
-    if(chanState.relay === 'on') parts.push('跨域正常');
-    if(chanState.proxy === 'err') parts.push('自建异常');
-    if(chanState.relay === 'err') parts.push('跨域异常');
-    el.title = parts.join(' · ') + '（点击切换通道）';
+    var txt = chanStatusText();
+    el.setAttribute('aria-label', '通道状态：' + txt);
+    el.title = '通道状态：' + txt;
+
+    var list = $('chanPopList');
+    if(!list) return;
+    list.innerHTML = '';
+    var rows = [
+      ['优先通道', mode === 'relay' ? '跨域优先' : '自建优先'],
+      ['当前状态', txt],
+      ['可用代理', PROXIES.length + ' 个'],
+      ['服务端缓存', chanState.serverCache || '—']
+    ];
+    rows.forEach(function(pair){
+      var li = document.createElement('li');
+      var a = document.createElement('span');
+      a.textContent = pair[0];
+      var b = document.createElement('b');
+      b.textContent = pair[1];
+      li.appendChild(a);
+      li.appendChild(b);
+      list.appendChild(li);
+    });
   }
 
   function setChan(kind, state){
@@ -724,35 +787,47 @@
     renderChanLight();
   }
 
+  function clearLocalCache(silent){
+    cache = {};
+    try{
+      localStorage.removeItem(CACHE_KEY);
+      localStorage.removeItem(CACHE_KEY_OLD);
+    }catch(e){}
+    setChan('cache', '');
+    setChan('serverCache', '');
+    if(!silent) toast('已清除本地缓存');
+  }
+
   function checkApi(){
-    var done = false, ctrl = null;
-    try{ ctrl = new AbortController(); }catch(e){}
-    var timer = setTimeout(function(){
-      if(done) return;
-      done = true;
-      try{ if(ctrl) ctrl.abort(); }catch(e){}
-      setChan('proxy', 'err');
-    }, 4000);
-    var opts = { method: 'HEAD', cache: 'no-store' };
-    if(ctrl) opts.signal = ctrl.signal;
-    fetch(PROXY + (PROXY.indexOf('?') >= 0 ? '&' : '?') + 'ping=1', opts)
-      .then(function(){
+    // 逐个探测代理连通性（HEAD ?ping=1），任一可用即视为正常
+    if(!PROXIES.length){ setChan('proxy', 'err'); return; }
+    var left = PROXIES.length, okany = false;
+    PROXIES.forEach(function(base){
+      var done = false, ctrl = null;
+      try{ ctrl = new AbortController(); }catch(e){}
+      var timer = setTimeout(function(){
         if(done) return;
         done = true;
-        clearTimeout(timer);
-        setChan('proxy', 'on');
-      })
-      .catch(function(){
-        if(done) return;
-        done = true;
-        clearTimeout(timer);
-        setChan('proxy', 'err');
-      });
+        try{ if(ctrl) ctrl.abort(); }catch(e){}
+        settle(false);
+      }, 4000);
+      var opts = { method: 'HEAD', cache: 'no-store' };
+      if(ctrl) opts.signal = ctrl.signal;
+      fetch(base + (base.indexOf('?') >= 0 ? '&' : '?') + 'ping=1', opts)
+        .then(function(){ if(done) return; done = true; clearTimeout(timer); settle(true); })
+        .catch(function(){ if(done) return; done = true; clearTimeout(timer); settle(false); });
+      function settle(ok){
+        if(ok) okany = true;
+        left--;
+        if(left <= 0 && !okany) setChan('proxy', 'err');
+        else if(okany) setChan('proxy', 'on');
+      }
+    });
   }
 
   function setProxy(){
-    var cur = hasCustomProxy() ? PROXY : '';
-    var v = window.prompt('境内代理地址（例如 https://你的域名/proxy.php）\n代理会收到查询号码，请使用你自己的主机。留空恢复默认。', cur);
+    var cur = hasCustomProxy() ? PROXIES[0] : '';
+    var v = window.prompt('自定义代理地址（例如 https://你的域名/proxy.php）\n代理会收到查询号码，请使用你自己的主机。留空恢复默认。', cur);
     if(v == null) return;
     v = v.trim();
     if(v && !/^https?:\/\//i.test(v)){
@@ -767,11 +842,11 @@
       if(v) localStorage.setItem(PROXY_KEY, v);
       else localStorage.removeItem(PROXY_KEY);
     }catch(e){}
-    PROXY = v || PROXY_DEFAULT;
-    cache = {};
-    try{ localStorage.removeItem(CACHE_KEY); }catch(e){}
+    PROXIES = buildProxyList();
+    clearLocalCache(true);
     toast(v ? '代理已保存，正在重新查询' : '已恢复默认代理');
-    if(phone.value.trim().length === 11) query();
+    checkApi();
+    if(phone.value.trim().length === 11) query(true);
   }
 
   function fmtMoney(n){
@@ -817,7 +892,7 @@
       
       var last = arpu[0];
       $('r-latest').textContent = fmtMoney(last.arpu);
-      $('r-latest-label').textContent = esc(last.month || '') + ' 消费';
+      $('r-latest-label').textContent = (last.month || '') + ' 消费';
     } else {
       tbody.innerHTML = '<tr><td colspan="3" class="empty">暂无可查询的消费记录</td></tr>';
       $('r-latest').textContent = '—';
@@ -1235,6 +1310,7 @@
     var res;
     try{ res = JSON.parse(s.slice(i, j + 1)); }catch(e){ return null; }
     if(typeof res.errorCode !== 'string') return null;
+    if(res.errorCode === 'error') return null;   // 代理/上游报错：走失败重试，不能当无记录
     if(res.errorCode !== 'success' || !res.entity) return { empty: true };
     var entity;
     try{ entity = typeof res.entity === 'string' ? JSON.parse(res.entity) : res.entity; }catch(e){ return null; }
@@ -1263,7 +1339,7 @@
       return;
     }
     var mySeq = ++reqSeq; 
-    var hit = cache[num];
+    var hit = cache[phoneKey(num)];
     if(!force && hit && (Date.now() - hit.ts) < CACHE_TTL){
       restoreBtn();
       rawShow(hit.txt, '缓存', true);
@@ -1280,13 +1356,12 @@
     btn.classList.add('loading');
     btnTxt.textContent = '查询中';
     setChan('cache', '');
-    setChan('relay', '');
+    setChan('serverCache', '');
     inputState.className = 'state idle'; inputState.textContent = '查询中';
     rawShow('正在请求接口…', '请求中', null);
 
     var relayOnly = (mode === 'relay');
-    rawSource(relayOnly ? '跨域代理并行查询中…' : (hasCustomProxy() ? '自定义代理' : '自建代理') + '优先查询中…');
-    var target = API + '?submitPhoneNO=' + encodeURIComponent(num) + API_PARAMS;
+    rawSource(relayOnly ? '跨域优先查询中…' : (hasCustomProxy() ? '自定义代理' : '默认代理') + '优先查询中…');
     var lastTxt = '', lastErr = '', emptyResult = null;
     var settled = false, pending = 1, controllers = [], fallbackStarted = false;
 
@@ -1297,17 +1372,18 @@
       controllers = [];
     }
 
-    function finishSuccess(txt, data, src){
+    function finishSuccess(txt, data, src, meta){
       if(settled || mySeq !== reqSeq) return;
       settled = true;
       abortAll();
       restoreBtn();
-      cache[num] = { txt: txt, data: data, ts: Date.now(), src: src };
+      cache[phoneKey(num)] = { txt: txt, data: data, ts: Date.now(), src: src };
       saveCache();
-      if(src === '自建代理' || src === '自定义代理') setChan('proxy', 'on');
-      else setChan('relay', 'on');
+      setChan('proxy', 'on');
+      var cacheTag = (meta && meta.cache) ? (meta.cache + (meta.age ? (' · ' + meta.age + 's') : '')) : '';
+      setChan('serverCache', cacheTag);
       rawShow(txt, '成功', true);
-      rawSource(src);
+      rawSource(src + (cacheTag ? ' · 服务端缓存 ' + cacheTag : ''));
       render(data, num);
       emptyCard.classList.remove('show');
       dataArea.style.display = 'block';
@@ -1346,11 +1422,10 @@
       } else {
         rawShow(lastTxt || ('请求失败：' + (lastErr || '网络异常')), '失败', false);
         rawSource('全部通道失败');
-        if(mode !== 'relay') setChan('proxy', 'err');
-        if(fallbackStarted) setChan('relay', 'err');
+        setChan('proxy', 'err');
         showEmpty();
-        inputState.className = 'state err'; inputState.textContent = '网络异常';
-        toast('网络异常，查询失败', true);
+        inputState.className = 'state err'; inputState.textContent = '查询失败';
+        toast(lastErr ? ('查询失败：' + lastErr) : '网络异常，查询失败', true);
       }
     }
 
@@ -1359,32 +1434,56 @@
       if(pending <= 0) finalize();
     }
 
-    function fetchSource(url, jsonOnly, cb, timeout){
-      var ctrl = null, timer = null, called = false, opts = { cache: 'no-store' };
-      function done(err, txt){
+    // 通道计划：主通道优先，失败后走第二个代理（没配就同一代理带抖动重试一次）
+    var plan = [
+      { base: PROXIES[0] || PROXY_DEFAULT, timeout: PRIMARY_TIMEOUT },
+      { base: PROXIES[1] || PROXIES[0] || PROXY_DEFAULT, timeout: RETRY_TIMEOUT }
+    ];
+
+    function requestVia(base, n, timeout, cb){
+      var ctrl = null, timer = null, called = false;
+      function done(err, txt, meta){
         if(called) return;
         called = true;
-        cb(err, txt);
+        if(timer) clearTimeout(timer);
+        cb(err, txt, meta);
+      }
+      function viaGet(meta){
+        // 兼容尚未升级的旧代理（只支持 GET）：POST 被拒时退回 GET，保证不断服
+        return fetch(base + (base.indexOf('?') >= 0 ? '&' : '?') + 'phone=' + encodeURIComponent(n),
+                     { cache: 'no-store' })
+          .then(function(r){
+            if(!r.ok) throw new Error('HTTP ' + r.status);
+            return r.text();
+          })
+          .then(function(t){ done(null, t, meta); });
       }
       try{ ctrl = new AbortController(); }catch(e){}
+      var opts = {
+        method: 'POST', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: n })
+      };
       if(ctrl){
         opts.signal = ctrl.signal;
-        timer = setTimeout(function(){ ctrl.abort(); }, timeout || RELAY_TIMEOUT);
+        timer = setTimeout(function(){
+          try{ ctrl.abort(); }catch(e){}
+          done(new Error('请求超时'));
+        }, timeout);
       }
-      fetch(url, opts)
+      fetch(base, opts)
         .then(function(r){
-          if(timer) clearTimeout(timer);
-          if(!r.ok) throw new Error('HTTP ' + r.status);
-          if(jsonOnly && (r.headers.get('content-type') || '').toLowerCase().indexOf('json') < 0){
-            throw new Error('转发文件不可用');
-          }
-          return r.text();
+          var meta = {
+            cache: r.headers.get('X-Cache') || '',
+            age: r.headers.get('X-Cache-Age') || ''
+          };
+          if(r.status === 405 || r.status === 415 || r.status === 400) return viaGet(meta);
+          if(!r.ok) throw new Error(r.status === 429 ? '请求过于频繁' : ('HTTP ' + r.status));
+          var ct = (r.headers.get('content-type') || '').toLowerCase();
+          if(ct.indexOf('json') < 0) throw new Error('转发文件不可用');
+          return r.text().then(function(t){ done(null, t, meta); });
         })
-        .then(function(txt){ done(null, txt); })
-        .catch(function(err){
-          if(timer) clearTimeout(timer);
-          done(err);
-        });
+        .catch(function(err){ done(err); });
       return ctrl;
     }
 
@@ -1392,16 +1491,16 @@
       if(settled || mySeq !== reqSeq || fallbackStarted) return;
       fallbackStarted = true;
       setChan('proxy', 'err');
-      rawSource((hasCustomProxy() ? '自定义代理' : '自建代理') + '不可用，中转并行查询中…');
-      pending = CHANNELS.length - 1;
+      rawSource('主通道未成功，正在重试…');
+      pending = plan.length - 1;
       controllers = [];
-      for(var i = 1; i < CHANNELS.length; i++) startChannel(i);
+      for(var i = 1; i < plan.length; i++) startAt(i);
     }
 
-    function startChannel(i){
-      var ch = CHANNELS[i];
-      var name = ch.nameFn ? ch.nameFn() : ch.name;
-      var ctrl = fetchSource(ch.build(target, num), !!ch.json, function(err, txt){
+    function startAt(i){
+      var p = plan[i];
+      var src = proxyName(p.base) + (i > 0 ? ' · 重试' : '');
+      var ctrl = requestVia(p.base, num, p.timeout, function(err, txt, meta){
         if(settled || mySeq !== reqSeq) return;
         if(err){
           lastErr = err.message || lastErr;
@@ -1411,26 +1510,26 @@
         lastTxt = txt;
         var data = parseNative(txt);
         if(data && data.arpu){
-          finishSuccess(txt, data, name);
+          finishSuccess(txt, data, src, meta);
           return;
         }
         if(data && data.empty){
-          if(i === 0) showNoRecord(txt, name);
-          else { finishEmpty(txt, name); trackDone(); }
+          if(i === 0) showNoRecord(txt, src);
+          else { finishEmpty(txt, src); trackDone(); }
           return;
         }
         lastErr = '返回内容无法解析';
         if(i === 0) startFallbacks(); else trackDone();
-      }, i === 0 ? PRIMARY_TIMEOUT : RELAY_TIMEOUT);
+      });
       if(ctrl) controllers.push(ctrl);
     }
 
     if(relayOnly){
       fallbackStarted = true;
-      pending = CHANNELS.length - 1;
-      for(var k = 1; k < CHANNELS.length; k++) startChannel(k);
+      pending = plan.length - 1;
+      for(var k = 1; k < plan.length; k++) startAt(k);
     } else {
-      startChannel(0);
+      startAt(0);
     }
   }
 
@@ -1462,17 +1561,37 @@
   phone.addEventListener('keydown', function(e){ if(e.key === 'Enter') query(true); });
   btn.addEventListener('click', function(){ query(true); });
   setMode(mode);
-  chanBar.addEventListener('click', function(){
-    setMode(mode === 'proxy' ? 'relay' : 'proxy');
-    toast(mode === 'relay' ? '已切换为跨域代理' : '已切换为自建代理');
-    if(phone.value.trim().length === 11) query(true);
+  function toggleChanPop(show){
+    var pop = $('chanPop');
+    if(!pop) return;
+    var want = (show == null) ? pop.hidden : !!show;
+    pop.hidden = !want;
+    if(want) renderChanLight();
+  }
+  chanBar.addEventListener('click', function(e){
+    e.stopPropagation();
+    toggleChanPop();
   });
   chanBar.addEventListener('keydown', function(e){
     if(e.key !== 'Enter' && e.key !== ' ') return;
-    var el = e.target.closest ? e.target.closest('.chan') : null;
-    if(!el) return;
     e.preventDefault();
-    el.click();
+    toggleChanPop();
+  });
+  document.addEventListener('click', function(e){
+    var pop = $('chanPop');
+    if(!pop || pop.hidden) return;
+    if(pop.contains(e.target) || chanBar.contains(e.target)) return;
+    pop.hidden = true;
+  });
+  $('chanSwitch').addEventListener('click', function(){
+    setMode(mode === 'proxy' ? 'relay' : 'proxy');
+    toast(mode === 'relay' ? '已切换为跨域优先' : '已切换为自建优先');
+    toggleChanPop(false);
+    if(phone.value.trim().length === 11) query(true);
+  });
+  $('chanClearCache').addEventListener('click', function(){
+    clearLocalCache();
+    toggleChanPop(false);
   });
   checkApi();
   setInterval(checkApi, 60000);

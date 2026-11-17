@@ -3,6 +3,11 @@ name: Deploy to FTP
 on:
   push:
     branches: [main]
+    # 只有会改线上行为的两类文件才触发部署：避免改 README 也去传一遍 FTP、打一遍冒烟
+    paths:
+      - index.html
+      - _proxy.php
+      - .github/workflows/deploy-ftp.yml
   workflow_dispatch:
 
 concurrency:
@@ -53,15 +58,37 @@ jobs:
           echo "部署完成"
 
       - name: 线上冒烟测试
+        # 不查真实号码：只用 ping 与非法号码验证「服务在线 + 参数校验生效」，
+        # 避免把任何真实手机号写进 CI 日志。
         run: |
-          set -e
+          set -euo pipefail
           BASE="https://a781927.xqryfh.cn/_proxy.php"
+          ORIGIN="https://rdtscx.github.io"
+
           echo "--- ping ---"
-          curl -fsS "${BASE}?ping=1"
-          echo
-          echo "--- 真实号码 ---"
-          curl -fsS "${BASE}?phone=13901011112"
-          echo
-          echo "--- CORS 头 ---"
-          curl -sSI -H "Origin: https://rdtscx.github.io" "${BASE}?ping=1" \
-            | grep -i "access-control-allow-origin"
+          curl -fsS "${BASE}?ping=1"; echo
+
+          echo "--- 预检 OPTIONS（期望 204）---"
+          CODE=$(curl -sS -o /dev/null -w "%{http_code}" -X OPTIONS "${BASE}" \
+            -H "Origin: ${ORIGIN}" -H "Access-Control-Request-Method: POST" \
+            -H "Access-Control-Request-Headers: content-type")
+          echo "HTTP ${CODE}"; [ "${CODE}" = "204" ]
+
+          echo "--- 白名单来源应回显 ACAO ---"
+          curl -sSI -H "Origin: ${ORIGIN}" "${BASE}?ping=1" | tr -d '\r' | grep -i "^access-control-allow-origin: ${ORIGIN}$"
+
+          echo "--- 非白名单来源应 403 ---"
+          CODE=$(curl -sS -o /dev/null -w "%{http_code}" -H "Origin: https://evil.example" "${BASE}?ping=1")
+          echo "HTTP ${CODE}"; [ "${CODE}" = "403" ]
+
+          echo "--- 非法号码应 400 ---"
+          CODE=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "${BASE}" \
+            -H "Content-Type: application/json" -d '{"phone":"1"}')
+          echo "HTTP ${CODE}"; [ "${CODE}" = "400" ]
+
+          echo "--- 透传只允许上游接口（期望 403）---"
+          CODE=$(curl -sS -o /dev/null -w "%{http_code}" \
+            "${BASE}?url=$(python3 -c "import urllib.parse;print(urllib.parse.quote('https://ysmapp.bj.10086.cn/evil/path',safe=''))")")
+          echo "HTTP ${CODE}"; [ "${CODE}" = "403" ]
+
+          echo "冒烟测试通过"
