@@ -1414,7 +1414,6 @@
     var res;
     try{ res = JSON.parse(s.slice(i, j + 1)); }catch(e){ return null; }
     if(typeof res.errorCode !== 'string') return null;
-    if(res.errorCode === 'error') return null;   // 代理/上游报错：走失败重试，不能当无记录
     if(res.errorCode !== 'success' || !res.entity) return { empty: true };
     var entity;
     try{ entity = typeof res.entity === 'string' ? JSON.parse(res.entity) : res.entity; }catch(e){ return null; }
