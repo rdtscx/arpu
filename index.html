@@ -521,21 +521,39 @@
   "use strict";
   // 运营商接口的 ACAO 固定为自己的域名，浏览器不能直连，查询统一走自建后端：
   // VPS 上的 proxy.py（cloudflared 隧道提供 HTTPS）。地址写在仓库根的 current.json，
-  // 隧道重启换地址时服务器会自动更新，页面每次查询前读一次。
+  // 隧道重启换地址时服务器会自动更新；页面另外记住上一次成功的地址做兼容：
+  // 先试 current.json 里的，不行再试上次成功的，都不行就重新拉一次配置再试。
   var CONFIG_URL = 'current.json';
+  var LAST_KEY = 'arpu_proxy_last';
   var FALLBACK_PROXY = 'https://abilities-pierce-christ-speaking.trycloudflare.com';
-  var proxyBase = '';
+  var proxyHint = '';
 
+  function lastProxy(){
+    try{ return localStorage.getItem(LAST_KEY) || ''; }catch(e){ return ''; }
+  }
+  function rememberProxy(u){
+    try{ if(u) localStorage.setItem(LAST_KEY, u); }catch(e){}
+  }
+  // 返回候选地址列表：first 优先进，last 作为回退
   function loadProxy(force){
-    if(proxyBase && !force) return Promise.resolve(proxyBase);
+    var last = lastProxy();
+    function pack(first){
+      var list = [first];
+      if(last && last !== first) list.push(last);
+      return list;
+    }
+    if(proxyHint && !force) return Promise.resolve(pack(proxyHint));
     return fetch(CONFIG_URL + '?_t=' + Date.now(), { cache: 'no-store' })
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(j){
         var u = (j && typeof j.proxy === 'string' && /^https:\/\//i.test(j.proxy)) ? j.proxy.replace(/\/+$/, '') : '';
-        proxyBase = u || FALLBACK_PROXY;
-        return proxyBase;
+        proxyHint = u || last || FALLBACK_PROXY;
+        return pack(proxyHint);
       })
-      .catch(function(){ proxyBase = FALLBACK_PROXY; return proxyBase; });
+      .catch(function(){
+        proxyHint = last || FALLBACK_PROXY;
+        return pack(proxyHint);
+      });
   }
 
   var $ = function(id){ return document.getElementById(id); };
@@ -1247,26 +1265,32 @@
       toast('查询失败，原因见左下角「接口原始数据」', true);
     }
 
-    // 单通道：地址取自 current.json（隧道重启换地址后自动跟上），失败先刷新地址再试一次
+    // 代理地址：先试 current.json 里的，再试上次成功的；都不行就重新拉一次配置再试
     function attempt(refresh){
-      loadProxy(refresh).then(function(base){
+      loadProxy(refresh).then(function(bases){
         if(settled || mySeq !== reqSeq) return;
-        rawSource('正在查询 · 自建代理');
-        var ctrl = requestVia(base, num, 12000, function(err, txt, meta){
-          if(settled || mySeq !== reqSeq) return;
-          if(err){
-            if(!refresh){ attempt(true); return; }
-            finishFail(err);
-            return;
-          }
-          var data = parseNative(txt);
-          if(data && data.arpu){ finishSuccess(txt, data, '自建代理', meta); return; }
-          if(data && data.empty){ finishEmpty(txt); return; }
-          if(!refresh){ attempt(true); return; }
-          finishFail(new Error('返回内容无法解析'));
-        });
-        if(ctrl) controllers.push(ctrl);
+        tryNext(bases.slice(), !!refresh, null);
       });
+    }
+
+    function tryNext(bases, refreshed, lastErr){
+      if(settled || mySeq !== reqSeq) return;
+      if(!bases.length){
+        if(!refreshed){ attempt(true); return; }
+        finishFail(lastErr);
+        return;
+      }
+      var base = bases.shift();
+      rawSource('正在查询 · 自建代理');
+      var ctrl = requestVia(base, num, 12000, function(err, txt, meta){
+        if(settled || mySeq !== reqSeq) return;
+        if(err){ tryNext(bases, refreshed, err); return; }
+        var data = parseNative(txt);
+        if(data && data.arpu){ rememberProxy(base); finishSuccess(txt, data, '自建代理', meta); return; }
+        if(data && data.empty){ rememberProxy(base); finishEmpty(txt); return; }
+        tryNext(bases, refreshed, new Error('返回内容无法解析'));
+      });
+      if(ctrl) controllers.push(ctrl);
     }
 
     attempt(false);
