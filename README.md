@@ -13,8 +13,10 @@ PHP 主机  https://a781927.xqryfh.cn/_proxy.php     ← 来源白名单 + 限�
    ▼
 ysmapp.bj.10086.cn   （ACAO 固定为自己域名、OPTIONS 预检 403，浏览器不能直连）
 
-代理不可达时回退到 Cloudflare Worker 中转（主通道失败才会发起，号码不会同时发给两处）：
+代理不可达时，页面会同时向几家中转并行发请求（主通道不单独回退，一律并行竞速）：
 https://arpu-relay.3062438329.workers.dev/?url=<encoded 上游地址>
+https://test.cors.workers.dev/?<encoded 上游地址>
+https://r.jina.ai/<上游地址>
 ```
 
 代理存在的唯一原因：上游 `Access-Control-Allow-Origin` 是 `https://ysmapp.bj.10086.cn`，
@@ -22,21 +24,21 @@ https://arpu-relay.3062438329.workers.dev/?url=<encoded 上游地址>
 
 ## 查询通道
 
-页面**不再做任何自动检测**：没有状态灯、没有整点轮询、没有后台探测请求。
-只在用户点击「查询话费」/ 输满 11 位时发一次真实查询，按顺序回退：
+页面**不做任何自动检测**，只在输满 11 位或点「查询话费」时发一次查询。
 
-1. 自定义代理（`localStorage.arpu_proxy`，在左下角「接口原始数据」浮窗的「代理」按钮里填写）
-2. 自建 PHP 代理 `https://a781927.xqryfh.cn/_proxy.php`
-3. Cloudflare Worker 中转（`*.workers.dev` 在国内 DNS 被污染，仅作境外兜底）
+**所有通道同时并行**（多家中转是为了绕开不同网络下的污染/拦截），谁先拿到合法数据用谁，
+其余请求立即 abort；全部失败时只有左下角「接口原始数据」浮窗保留各通道的真实原因。
 
-| 阶段 | 行为 | 超时 | 说明 |
-|---|---|---|---|
-| 主通道 | 向自建代理 `POST {"phone":…}` | 8s | 旧代理不支持 POST 时自动退回 GET |
-| 回退 | 主通道失败/超时后改走 CF 中转（GET，上游地址整体编码） | 15s | 主通道可用时不会发起，避免号码多发给一家 |
-| 全失败 | 所有通道都异常 → 提示失败；拿到空结果 → 提示无记录 | — | 不会把「接口报错」误判为「无记录」 |
+| 通道 | 请求形式 | 超时 |
+|---|---|---|
+| 自定义代理（`localStorage.arpu_proxy`） | `POST {"phone":…}` | 8s |
+| 自建 PHP 代理 `a781927.xqryfh.cn/_proxy.php` | `POST {"phone":…}`，旧代理不支持 POST 时退回 GET | 8s |
+| CF 中转 `arpu-relay…workers.dev` | `GET ?url=<上游地址>` | 12s |
+| CF 备用 `test.cors.workers.dev` | `GET ?<上游地址>` | 12s |
+| Jina 中转 `r.jina.ai` | `GET <上游地址>` | 15s |
 
-号码放请求体，不进 URL / 访问日志 / Referer（CF 中转是 GET，号码仅在编码后的查询串里）。
-查询来源显示在左下角浮窗：「自建代理 / 自定义代理 / CF 中转 / 本地缓存」。
+结果区只显示解析后的账单；原始响应（含失败原因）只出现在左下角浮窗，来源标签会写清楚
+是哪个通道返回的（自建代理 / 自定义代理 / CF 中转 / CF 备用 / Jina 中转 / 本地缓存）。
 
 ## 代理端点
 
@@ -90,6 +92,7 @@ https://arpu-relay.3062438329.workers.dev/?url=<encoded 上游地址>
 ## 备注
 
 - 手机号在代理侧只参与缓存键（`md5(上游URL)`），不写业务日志；前端本地缓存键为号码哈希。
-- `*.workers.dev` 在国内 DNS 被污染，不能作主通道；页面里只把它当境外兜底，PHP 代理仍是主通道。
+- `*.workers.dev` 在国内 DNS 被污染，所以除了 CF 中转还同时挂了 `test.cors.workers.dev`
+  和 `r.jina.ai`，并行竞速；哪家先回合法 JSON 就用哪家，其余立即中止。
 - 2026-11-20 已移除自动检测（右上角状态灯、每分钟 ping、整点轮询选最快通道、`arpu_channel_win` 缓存）：
   这些探测在网络不通时会持续报错，且与查询结果无关。

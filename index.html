@@ -535,7 +535,6 @@
   var UPSTREAM_PARAMS = '&submitWarePackageId=A1000529&submitChannel=app_share'
       + '&submitCode=WWFSX001570&submitEmpCode=WWFSX001570&nbc=ddf05d72a82e5df6698124e53faf3fb9';
   var PROXY_DEFAULT = 'https://a781927.xqryfh.cn/_proxy.php';
-  var RELAY_BASE = 'https://arpu-relay.3062438329.workers.dev/?url=';
   var PROXY_KEY = 'arpu_proxy';
 
   function upstreamUrl(num){
@@ -552,7 +551,6 @@
     return '';
   }
 
-  var RETRY_TIMEOUT = 15000;
   var $ = function(id){ return document.getElementById(id); };
   var phone = $('phone'), btn = $('btn'), btnTxt = $('btn-txt');
   var resultArea = $('resultArea'), dataArea = $('dataArea'), emptyCard = $('emptyCard');
@@ -704,13 +702,21 @@
     if(!silent) toast('已清除本地缓存');
   }
 
-  // 查询通道：自建代理（自定义优先，其次默认地址）→ CF 中转；失败逐个回退。
+  // 中转通道：国内网络对 *.workers.dev 有 DNS 污染，所以同时挂多家中转，并行竞速，
+  // 谁先返回有效数据就用谁（其余请求立即 abort）。
+  var RELAYS = [
+    { name: 'CF 中转', timeout: 12000, build: function(u){ return 'https://arpu-relay.3062438329.workers.dev/?url=' + encodeURIComponent(u); } },
+    { name: 'CF 备用', timeout: 12000, build: function(u){ return 'https://test.cors.workers.dev/?' + u; } },
+    { name: 'Jina 中转', timeout: 15000, build: function(u){ return 'https://r.jina.ai/' + u; } }
+  ];
+
+  // 通道：自建代理（自定义优先）与各中转一起并发。
   function channelList(){
     var out = [];
     var custom = customProxy();
     if(custom) out.push({ kind: 'proxy', label: '自定义代理', base: custom, timeout: 8000 });
     out.push({ kind: 'proxy', label: '自建代理', base: PROXY_DEFAULT, timeout: 8000 });
-    out.push({ kind: 'relay', label: 'CF 中转', base: RELAY_BASE, timeout: 15000 });
+    RELAYS.forEach(function(r){ out.push({ kind: 'relay', label: r.name, build: r.build, timeout: r.timeout }); });
     return out;
   }
 
@@ -1242,8 +1248,8 @@
     inputState.className = 'state idle'; inputState.textContent = '查询中';
     rawShow('正在请求接口…', '请求中', null);
 
-    // 通道并发：先拿到有效数据者生效，失败的通道自动跳过。
-    var empties = [], errs = [], won = false;
+    // 所有通道并行；先拿到有效数据者生效，其余立即中止。
+    var empties = [], errs = [], won = false, pending = 0;
     var settled = false, controllers = [];
 
     function abortAll(){
@@ -1276,40 +1282,34 @@
       abortAll();
       restoreBtn();
       if(empties.length){
-        // 所有通道都没给出数据：取第一个通道的原始响应展示
         rawShow(empties[0].txt, '无记录', false);
         rawSource(empties[0].src + '（无记录）');
         showEmpty();
         inputState.className = 'state err'; inputState.textContent = '无记录';
         toast('该号码暂无可查询的消费记录', true);
       } else {
-        var msg = errs.length ? errs.join('；') : '网络异常';
-        rawShow('请求失败：' + msg, '失败', false);
+        rawShow(errs.join('\n'), '失败', false);
         rawSource('全部通道失败');
         showEmpty();
         inputState.className = 'state err'; inputState.textContent = '查询失败';
-        toast('查询失败：' + msg, true);
+        toast('查询失败，原因见左下角「接口原始数据」', true);
       }
     }
 
-    // 通道按顺序回退：自建代理 → CF 中转，任一拿到有效数据即止。
+    // 所有通道并行；先拿到有效数据者生效。
     function dispatch(){
       var chs = channelList();
-      rawSource('正在查询 · ' + chs[0].label);
-      fireNext(chs);
+      pending = chs.length;
+      rawSource('并发查询中 · ' + chs.length + ' 个通道');
+      chs.forEach(fire);
     }
 
-    function fireNext(list){
-      if(settled || won || mySeq !== reqSeq) return;
-      if(!list.length){ finalize(); return; }
-      var ch = list.shift();
-      var send = ch.kind === 'relay' ? requestRelay : requestVia;
-      var ctrl = send(ch.base, num, ch.timeout || RETRY_TIMEOUT, function(err, txt, meta){
-        if(settled || won || mySeq !== reqSeq) return;
+    function fire(ch){
+      function handler(err, txt, meta){
+        if(settled || mySeq !== reqSeq) return;
         if(err){
           errs.push(ch.label + '：' + (err.message || '网络异常'));
-          if(list.length) rawSource(ch.label + ' 不可用，改用 ' + list[0].label + '…');
-          fireNext(list);
+          if(--pending <= 0) finalize();
           return;
         }
         var data = parseNative(txt);
@@ -1318,15 +1318,13 @@
           finishSuccess(txt, data, ch.label, meta);
           return;
         }
-        if(data && data.empty){
-          // 无记录是有效结果，无需再回退其他通道
-          empties.push({ txt: txt, src: ch.label });
-          finalize();
-          return;
-        }
-        errs.push('返回内容无法解析');
-        fireNext(list);
-      });
+        if(data && data.empty) empties.push({ txt: txt, src: ch.label });
+        else errs.push(ch.label + '：返回内容无法解析');
+        if(--pending <= 0) finalize();
+      }
+      var ctrl;
+      if(ch.kind === 'relay') ctrl = requestRelay(ch.build(upstreamUrl(num)), ch.timeout, handler);
+      else ctrl = requestVia(ch.base, num, ch.timeout, handler);
       if(ctrl) controllers.push(ctrl);
     }
 
@@ -1380,8 +1378,9 @@
       return ctrl;
     }
 
-    // CF 中转：GET 转发上游完整地址，直接回上游原始 JSON
-    function requestRelay(base, n, timeout, cb){
+    // 中转：GET 一个已拼好的上游地址，返回上游原始内容。
+    // 部分中转会把响应包一层 {"contents": "…"}，这里顺手拆开。
+    function requestRelay(url, timeout, cb){
       var ctrl = null, timer = null, called = false;
       function done(err, txt){
         if(called) return;
@@ -1398,12 +1397,19 @@
       }
       var opts = { method: 'GET', cache: 'no-store' };
       if(ctrl) opts.signal = ctrl.signal;
-      fetch(base + encodeURIComponent(upstreamUrl(n)), opts)
+      fetch(url, opts)
         .then(function(r){
           if(!r.ok) throw new Error(r.status === 429 ? '请求过于频繁' : ('HTTP ' + r.status));
           return r.text();
         })
-        .then(function(t){ done(null, t); })
+        .then(function(t){
+          var s = String(t || '');
+          try{
+            var o = JSON.parse(s);
+            if(o && typeof o.contents === 'string') s = o.contents;
+          }catch(e){}
+          done(null, s);
+        })
         .catch(function(err){ done(err); });
       return ctrl;
     }
