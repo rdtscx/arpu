@@ -1283,7 +1283,7 @@
         inputState.className = 'state err'; inputState.textContent = '无记录';
         toast('该号码暂无可查询的消费记录', true);
       } else {
-        var msg = errs.length ? errs[0] : '网络异常';
+        var msg = errs.length ? errs.join('；') : '网络异常';
         rawShow('请求失败：' + msg, '失败', false);
         rawSource('全部通道失败');
         showEmpty();
