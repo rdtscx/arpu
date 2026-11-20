@@ -308,12 +308,6 @@
   .raw-float .raw-hd .dot{width:6px;height:6px;border-radius:50%;background:var(--faint);flex:none;box-shadow:0 0 0 3px rgba(170,180,200,.22)}
   .raw-float.ok .raw-hd .dot{background:var(--ok);box-shadow:0 0 0 3px rgba(22,163,74,.16)}
   .raw-float.err .raw-hd .dot{background:var(--up);box-shadow:0 0 0 3px rgba(224,46,46,.16)}
-  .raw-float .raw-proxy{
-    margin-left:auto;flex:none;cursor:pointer;
-    font-size:10.5px;font-weight:600;color:var(--accent);
-    background:var(--accent-soft);border-radius:20px;padding:2px 8px;
-  }
-  .raw-float .raw-proxy:hover{background:#dfe9ff}
   .raw-float .raw-st{
     flex:none;font-size:10.5px;font-weight:600;color:var(--muted);
     background:rgba(27,42,74,.06);border-radius:20px;padding:2px 8px;
@@ -516,7 +510,6 @@
   <div class="raw-hd" id="rawHead">
     <span class="dot"></span>
     <span>接口原始数据</span>
-    <span class="raw-proxy" id="rawProxy">代理</span>
     <span class="raw-st" id="rawState">暂无</span>
   </div>
   <div class="raw-src" id="rawSrc">来源：—</div>
@@ -528,27 +521,23 @@
 <script>
 (function(){
   "use strict";
-  // 上游接口与中转：运营商接口的 ACAO 固定为自己的域名，浏览器不能直连，
-  // 因此查询走自建 PHP 代理（https://a781927.xqryfh.cn/_proxy.php）；
-  // 代理不可达时回退到 Cloudflare Worker 中转（境外网络可用）。
-  var UPSTREAM = 'https://ysmapp.bj.10086.cn/app/channel-web/busiCore/customerValidateAndConsumption.action';
-  var UPSTREAM_PARAMS = '&submitWarePackageId=A1000529&submitChannel=app_share'
-      + '&submitCode=WWFSX001570&submitEmpCode=WWFSX001570&nbc=ddf05d72a82e5df6698124e53faf3fb9';
-  var PROXY_DEFAULT = 'https://a781927.xqryfh.cn/_proxy.php';
-  var PROXY_KEY = 'arpu_proxy';
+  // 运营商接口的 ACAO 固定为自己的域名，浏览器不能直连，查询统一走自建后端：
+  // VPS 上的 proxy.py（cloudflared 隧道提供 HTTPS）。地址写在仓库根的 current.json，
+  // 隧道重启换地址时服务器会自动更新，页面每次查询前读一次。
+  var CONFIG_URL = 'current.json';
+  var FALLBACK_PROXY = 'https://abilities-pierce-christ-speaking.trycloudflare.com';
+  var proxyBase = '';
 
-  function upstreamUrl(num){
-    return UPSTREAM + '?submitPhoneNO=' + encodeURIComponent(num) + UPSTREAM_PARAMS;
-  }
-  function customProxy(){
-    try{
-      var c = localStorage.getItem(PROXY_KEY);
-      if(c && /^https?:\/\//i.test(c)){
-        if(location.protocol === 'https:' && /^http:\/\//i.test(c)) return '';
-        return c;
-      }
-    }catch(e){}
-    return '';
+  function loadProxy(force){
+    if(proxyBase && !force) return Promise.resolve(proxyBase);
+    return fetch(CONFIG_URL + '?_t=' + Date.now(), { cache: 'no-store' })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){
+        var u = (j && typeof j.proxy === 'string' && /^https:\/\//i.test(j.proxy)) ? j.proxy.replace(/\/+$/, '') : '';
+        proxyBase = u || FALLBACK_PROXY;
+        return proxyBase;
+      })
+      .catch(function(){ proxyBase = FALLBACK_PROXY; return proxyBase; });
   }
 
   var $ = function(id){ return document.getElementById(id); };
@@ -700,45 +689,6 @@
       localStorage.removeItem(CACHE_KEY_OLD);
     }catch(e){}
     if(!silent) toast('已清除本地缓存');
-  }
-
-  // 中转通道：国内网络对 *.workers.dev 有 DNS 污染，所以同时挂多家中转，并行竞速，
-  // 谁先返回有效数据就用谁（其余请求立即 abort）。
-  var RELAYS = [
-    { name: 'CF 中转', timeout: 12000, build: function(u){ return 'https://arpu-relay.3062438329.workers.dev/?url=' + encodeURIComponent(u); } },
-    { name: 'CF 备用', timeout: 12000, build: function(u){ return 'https://test.cors.workers.dev/?' + u; } },
-    { name: 'Jina 中转', timeout: 15000, build: function(u){ return 'https://r.jina.ai/' + u; } }
-  ];
-
-  // 通道：自建代理（自定义优先）与各中转一起并发。
-  function channelList(){
-    var out = [];
-    var custom = customProxy();
-    if(custom) out.push({ kind: 'proxy', label: '自定义代理', base: custom, timeout: 8000 });
-    out.push({ kind: 'proxy', label: '自建代理', base: PROXY_DEFAULT, timeout: 8000 });
-    RELAYS.forEach(function(r){ out.push({ kind: 'relay', label: r.name, build: r.build, timeout: r.timeout }); });
-    return out;
-  }
-
-  function setProxy(){
-    var v = window.prompt('自定义代理地址（可选，优先级高于默认自建代理）。\n代理需要接收查询号码，请只填你自己的主机；留空则恢复默认。', customProxy());
-    if(v == null) return;
-    v = v.trim();
-    if(v && !/^https?:\/\//i.test(v)){
-      toast('代理地址需以 http(s):// 开头', true);
-      return;
-    }
-    if(v && location.protocol === 'https:' && /^http:\/\//i.test(v)){
-      toast('HTTPS 页面只能使用 HTTPS 代理', true);
-      return;
-    }
-    try{
-      if(v) localStorage.setItem(PROXY_KEY, v);
-      else localStorage.removeItem(PROXY_KEY);
-    }catch(e){}
-    clearLocalCache(true);
-    toast(v ? '已保存自定义代理，正在重新查询' : '已恢复默认代理');
-    if(phone.value.trim().length === 11) query(true);
   }
 
   function fmtMoney(n){
@@ -1202,7 +1152,8 @@
     var res;
     try{ res = JSON.parse(s.slice(i, j + 1)); }catch(e){ return null; }
     if(typeof res.errorCode !== 'string') return null;
-    if(res.errorCode !== 'success' || !res.entity) return { empty: true };
+    // 上游偶尔返回 errorCode=error（“查询用户信息失败”）但 entity 里数据完整，照样解析
+    if(!res.entity) return { empty: true };
     var entity;
     try{ entity = typeof res.entity === 'string' ? JSON.parse(res.entity) : res.entity; }catch(e){ return null; }
     var vals = [], cur = prevMonth(currentMonth());
@@ -1248,8 +1199,6 @@
     inputState.className = 'state idle'; inputState.textContent = '查询中';
     rawShow('正在请求接口…', '请求中', null);
 
-    // 所有通道并行；先拿到有效数据者生效，其余立即中止。
-    var empties = [], errs = [], won = false, pending = 0;
     var settled = false, controllers = [];
 
     function abortAll(){
@@ -1266,9 +1215,8 @@
       restoreBtn();
       cache[phoneKey(num)] = { txt: stripPhone(txt, num), data: data, ts: Date.now(), src: src };
       saveCache();
-      var cacheTag = (meta && meta.cache) ? (meta.cache + (meta.age ? (' · ' + meta.age + 's') : '')) : '';
       rawShow(txt, '成功', true);
-      rawSource(src + (cacheTag ? ' · 服务端缓存 ' + cacheTag : ''));
+      rawSource(src);
       render(data, num);
       emptyCard.classList.remove('show');
       dataArea.style.display = 'block';
@@ -1276,59 +1224,54 @@
       inputState.className = 'state ok'; inputState.textContent = '查询成功';
     }
 
-    function finalize(){
+    function finishEmpty(txt){
       if(settled || mySeq !== reqSeq) return;
       settled = true;
       abortAll();
       restoreBtn();
-      if(empties.length){
-        rawShow(empties[0].txt, '无记录', false);
-        rawSource(empties[0].src + '（无记录）');
-        showEmpty();
-        inputState.className = 'state err'; inputState.textContent = '无记录';
-        toast('该号码暂无可查询的消费记录', true);
-      } else {
-        rawShow(errs.join('\n'), '失败', false);
-        rawSource('全部通道失败');
-        showEmpty();
-        inputState.className = 'state err'; inputState.textContent = '查询失败';
-        toast('查询失败，原因见左下角「接口原始数据」', true);
-      }
+      rawShow(txt, '无记录', false);
+      rawSource('自建代理（无记录）');
+      showEmpty();
+      inputState.className = 'state err'; inputState.textContent = '无记录';
+      toast('该号码暂无可查询的消费记录', true);
     }
 
-    // 所有通道并行；先拿到有效数据者生效。
-    function dispatch(){
-      var chs = channelList();
-      pending = chs.length;
-      rawSource('并发查询中 · ' + chs.length + ' 个通道');
-      chs.forEach(fire);
+    function finishFail(err){
+      if(settled || mySeq !== reqSeq) return;
+      settled = true;
+      abortAll();
+      restoreBtn();
+      var msg = (err && err.message) || '网络异常';
+      rawShow('请求失败：' + msg, '失败', false);
+      rawSource('自建代理不可用');
+      showEmpty();
+      inputState.className = 'state err'; inputState.textContent = '查询失败';
+      toast('查询失败，原因见左下角「接口原始数据」', true);
     }
 
-    function fire(ch){
-      function handler(err, txt, meta){
+    // 单通道：地址取自 current.json（隧道重启换地址后自动跟上），失败先刷新地址再试一次
+    function attempt(refresh){
+      loadProxy(refresh).then(function(base){
         if(settled || mySeq !== reqSeq) return;
-        if(err){
-          errs.push(ch.label + '：' + (err.message || '网络异常'));
-          if(--pending <= 0) finalize();
-          return;
-        }
-        var data = parseNative(txt);
-        if(data && data.arpu){
-          won = true;                       // 先到先得，其余请求立即中止
-          finishSuccess(txt, data, ch.label, meta);
-          return;
-        }
-        if(data && data.empty) empties.push({ txt: txt, src: ch.label });
-        else errs.push(ch.label + '：返回内容无法解析');
-        if(--pending <= 0) finalize();
-      }
-      var ctrl;
-      if(ch.kind === 'relay') ctrl = requestRelay(ch.build(upstreamUrl(num)), ch.timeout, handler);
-      else ctrl = requestVia(ch.base, num, ch.timeout, handler);
-      if(ctrl) controllers.push(ctrl);
+        rawSource('正在查询 · 自建代理');
+        var ctrl = requestVia(base, num, 12000, function(err, txt, meta){
+          if(settled || mySeq !== reqSeq) return;
+          if(err){
+            if(!refresh){ attempt(true); return; }
+            finishFail(err);
+            return;
+          }
+          var data = parseNative(txt);
+          if(data && data.arpu){ finishSuccess(txt, data, '自建代理', meta); return; }
+          if(data && data.empty){ finishEmpty(txt); return; }
+          if(!refresh){ attempt(true); return; }
+          finishFail(new Error('返回内容无法解析'));
+        });
+        if(ctrl) controllers.push(ctrl);
+      });
     }
 
-    dispatch();
+    attempt(false);
   }
 
     function requestVia(base, n, timeout, cb){
@@ -1378,42 +1321,6 @@
       return ctrl;
     }
 
-    // 中转：GET 一个已拼好的上游地址，返回上游原始内容。
-    // 部分中转会把响应包一层 {"contents": "…"}，这里顺手拆开。
-    function requestRelay(url, timeout, cb){
-      var ctrl = null, timer = null, called = false;
-      function done(err, txt){
-        if(called) return;
-        called = true;
-        if(timer) clearTimeout(timer);
-        cb(err, txt, { cache: '', age: '' });
-      }
-      try{ ctrl = new AbortController(); }catch(e){}
-      if(ctrl){
-        timer = setTimeout(function(){
-          try{ ctrl.abort(); }catch(e){}
-          done(new Error('请求超时'));
-        }, timeout);
-      }
-      var opts = { method: 'GET', cache: 'no-store' };
-      if(ctrl) opts.signal = ctrl.signal;
-      fetch(url, opts)
-        .then(function(r){
-          if(!r.ok) throw new Error(r.status === 429 ? '请求过于频繁' : ('HTTP ' + r.status));
-          return r.text();
-        })
-        .then(function(t){
-          var s = String(t || '');
-          try{
-            var o = JSON.parse(s);
-            if(o && typeof o.contents === 'string') s = o.contents;
-          }catch(e){}
-          done(null, s);
-        })
-        .catch(function(err){ done(err); });
-      return ctrl;
-    }
-
   function showEmpty(){
     dataArea.style.display = 'none';
     emptyCard.classList.add('show');
@@ -1442,7 +1349,6 @@
   phone.addEventListener('keydown', function(e){ if(e.key === 'Enter') query(true); });
   btn.addEventListener('click', function(){ query(true); });
   $('rawHead').addEventListener('click', function(){ rawFloat.classList.toggle('collapsed'); });
-  $('rawProxy').addEventListener('click', function(e){ e.stopPropagation(); setProxy(); });
 
   
   document.querySelectorAll('.fc-field input').forEach(function(inp){
