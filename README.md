@@ -26,10 +26,26 @@ ysmapp.bj.10086.cn   （ACAO 固定为自己的域名、OPTIONS 403，浏览器�
 |---|---|---|
 | 代理服务 | `/opt/arpu/proxy.py` + `arpu-proxy.service` | Python 标准库实现，只监听 127.0.0.1:8787 |
 | 隧道 | `arpu-tunnel.service`（cloudflared） | `cloudflared tunnel --url http://127.0.0.1:8787`，日志在 `/opt/arpu/tunnel.log` |
-| 地址同步 | `/opt/arpu/publish.sh` + `arpu-publish.timer` | 每分钟比对隧道地址，变了就更新仓库 `current.json` 并 push（写入用仓库 deploy key） |
+| 地址同步 | `/opt/arpu/publish.sh` + `arpu-publish.timer` | 开机 15s 后开始，每 20s 一轮；地址变了且 `?ping=1` 通才更新仓库 `current.json` 并 push（deploy key `arpu-publisher`） |
+| 看门狗 | `/opt/arpu/watchdog.sh` + `arpu-watchdog.timer` | 开机 60s 后开始，每 2 分钟查一次：代理 ping 不通 → 重启代理；隧道地址访问不通 → 重启隧道 |
 
-前端不写死地址：每次查询前读同源的 `current.json`（`{"proxy":"https://…"}`），
-隧道重启换了地址会自动跟上；地址刷新后仍失败才会报查询失败。
+四个单元均 `systemctl enable`，**开机自动运行**；`arpu-tunnel` 设了 `StartLimitIntervalSec=0`，
+不会因为反复重试被 systemd 熔断。
+
+前端不写死地址：每次查询先读同源 `current.json`，再回退到 localStorage 里上次成功的地址，
+都不行就重新拉一次配置再试，三次都失败才报错。
+
+### 重启后会发生什么（2026-11-20 实测）
+
+```
+18:27:23  reboot
+18:28:25  cloudflared 重新连接拿到新地址，publish 已把它写进 current.json
+18:29:xx  GitHub Pages 重新部署完成
+          → 页面无需任何人工操作，直接可查（旧地址的白名单也仍可用）
+```
+
+quick tunnel 的域名重启后会变，所以不要把它当成固定域名写死在使用方；
+要做完全固定的域名，需要域名接入 Cloudflare 后改用 named tunnel（或在能占用 80/443 的主机上直接签证书）。
 
 ## 查询流程
 
