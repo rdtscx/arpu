@@ -61,32 +61,7 @@
   .appbar .ttl{flex:1;min-width:0}
   .appbar h1{font-size:16px;font-weight:650;letter-spacing:.3px}
   .appbar .sub{font-size:12px;color:var(--muted);margin-top:1px}
-  .appbar .chan-bar{display:flex;align-items:center;flex:none;padding:2px 0}
-  .appbar .chan{
-    display:block;width:9px;height:9px;border-radius:50%;background:var(--faint);
-    box-shadow:0 0 0 3px rgba(27,42,74,.06);cursor:pointer;
-    transition:background .2s, box-shadow .2s;
-  }
-  .appbar .chan.on{background:var(--ok);box-shadow:0 0 0 3px rgba(22,163,74,.14)}
-  .appbar .chan.err{background:var(--up);box-shadow:0 0 0 3px rgba(224,46,46,.14)}
-  .appbar .chan:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-  .chan-pop{
-    position:fixed;z-index:60;top:56px;right:12px;width:236px;padding:12px;
-    background:#fff;border:1px solid #e3e8f0;border-radius:12px;
-    box-shadow:0 10px 28px rgba(20,32,60,.14);font-size:12px;color:var(--tx);
-  }
-  .chan-pop[hidden]{display:none}
-  .chan-pop .cp-t{font-weight:650;margin-bottom:8px}
-  .chan-pop .cp-l{margin:0 0 10px;padding:0;list-style:none}
-  .chan-pop .cp-l li{display:flex;justify-content:space-between;gap:10px;padding:2px 0;color:var(--muted)}
-  .chan-pop .cp-l li b{color:var(--tx);font-weight:600}
-  .chan-pop .cp-a{display:flex;gap:8px}
-  .chan-pop .cp-a button{
-    flex:1;height:30px;border:1px solid #e3e8f0;border-radius:8px;background:#f7f9fc;
-    color:var(--tx);font-size:12px;cursor:pointer;
-  }
-  .chan-pop .cp-a button:hover{background:#eef3fb}
-
+  
   
   .main{max-width:760px;margin:0 auto;padding:18px 16px 40px}
   .section-title{
@@ -396,18 +371,6 @@
       <h1>话费查询</h1>
       <div class="sub">ARPU 消费记录</div>
     </div>
-    <div class="chan-bar" id="chanBar">
-      <span class="chan" id="chanLight" role="button" tabindex="0" aria-haspopup="true"
-            title="待查询" aria-label="通道状态"></span>
-    </div>
-  </div>
-</div>
-
-<div class="chan-pop" id="chanPop" hidden>
-  <div class="cp-t">通道状态</div>
-  <ul class="cp-l" id="chanPopList"></ul>
-  <div class="cp-a">
-    <button type="button" id="chanClearCache">清除本地缓存</button>
   </div>
 </div>
 
@@ -565,52 +528,42 @@
 <script>
 (function(){
   "use strict";
-  var PROXY_KEY = 'arpu_proxy';
+  // 上游接口与中转：运营商接口的 ACAO 固定为自己的域名，浏览器不能直连，
+  // 因此查询走自建 PHP 代理（https://a781927.xqryfh.cn/_proxy.php）；
+  // 代理不可达时回退到 Cloudflare Worker 中转（境外网络可用）。
+  var UPSTREAM = 'https://ysmapp.bj.10086.cn/app/channel-web/busiCore/customerValidateAndConsumption.action';
+  var UPSTREAM_PARAMS = '&submitWarePackageId=A1000529&submitChannel=app_share'
+      + '&submitCode=WWFSX001570&submitEmpCode=WWFSX001570&nbc=ddf05d72a82e5df6698124e53faf3fb9';
   var PROXY_DEFAULT = 'https://a781927.xqryfh.cn/_proxy.php';
+  var RELAY_BASE = 'https://arpu-relay.3062438329.workers.dev/?url=';
+  var PROXY_KEY = 'arpu_proxy';
 
-  // 代理地址列表：默认代理 + 可选自定义代理（自定义优先）。多个地址时可故障切换，
-  // 以后换域名/加备用代理只需改这里，不用动查询逻辑。
-  function buildProxyList(){
-    var list = [];
+  function upstreamUrl(num){
+    return UPSTREAM + '?submitPhoneNO=' + encodeURIComponent(num) + UPSTREAM_PARAMS;
+  }
+  function customProxy(){
     try{
       var c = localStorage.getItem(PROXY_KEY);
-      if(c && /^https?:\/\//i.test(c)) list.push(c);
+      if(c && /^https?:\/\//i.test(c)){
+        if(location.protocol === 'https:' && /^http:\/\//i.test(c)) return '';
+        return c;
+      }
     }catch(e){}
-    list.push(PROXY_DEFAULT);
-    var seen = {}, out = [];
-    list.forEach(function(p){
-      if(location.protocol === 'https:' && /^http:\/\//i.test(p)) return;  // 混合内容会被浏览器直接拦
-      if(seen[p]) return;
-      seen[p] = 1;
-      out.push(p);
-    });
-    return out;
+    return '';
   }
-  var PROXIES = buildProxyList();
-  function hasCustomProxy(){ return PROXIES.length > 1 && PROXIES[0] !== PROXY_DEFAULT; }
-  function proxyName(p){ return p === PROXY_DEFAULT ? '默认代理' : '自定义代理'; }
 
-  // 主通道超时必须大于代理自己的上游超时（8s），否则冷缓存时客户端先放弃、
-  // 服务端还在请求，随后又发起别的通道，同一个号码并发打上游。
-  var RETRY_TIMEOUT = 12000;
+  var RETRY_TIMEOUT = 15000;
   var $ = function(id){ return document.getElementById(id); };
   var phone = $('phone'), btn = $('btn'), btnTxt = $('btn-txt');
   var resultArea = $('resultArea'), dataArea = $('dataArea'), emptyCard = $('emptyCard');
   var tbody = $('tbody'), cntLabel = $('cnt-label'), inputState = $('input-state');
   var rawFloat = $('rawFloat'), rawState = $('rawState'), rawBody = $('rawBody'), rawSrc = $('rawSrc');
-  var chanBar = $('chanBar');
   var reqSeq = 0; 
   var cache = {};
   var CACHE_KEY = 'arpu_cache_v2';
   var CACHE_KEY_OLD = 'arpu_cache_v1';
   var CACHE_TTL = 10 * 60 * 1000;
   var CACHE_MAX = 20;
-  // 整点轮询：每小时对各通道发一次探测查询，返回最快的通道记为接下来一小时的默认查询方式。
-  // PROBE_PHONE 是轮询用的探测号码（11 位手机号），留空则跳过轮询、保留上一轮结果。
-  var PROBE_PHONE = '13901011113';
-  var CHANNEL_WIN_KEY = 'arpu_channel_win';
-  var CHANNEL_WIN_TTL = 60 * 60 * 1000;
-  var probeWarned = false;
   // 号码哈希作为缓存键：localStorage 里不再直接出现手机号（原 v1 缓存清理掉）
   function phoneKey(n){
     var h = 5381, s = String(n);
@@ -641,20 +594,6 @@
       keys.forEach(function(k){ out[k] = cache[k]; });
       localStorage.setItem(CACHE_KEY, JSON.stringify(out));
     }catch(e){}
-  }
-
-  // 整点轮询选出的最快通道：存 localStorage，有效期 1 小时，下轮轮询覆盖
-  function saveWinner(base, label, ms){
-    try{
-      localStorage.setItem(CHANNEL_WIN_KEY, JSON.stringify({ base: base, label: label, ms: Math.round(ms), ts: Date.now() }));
-    }catch(e){}
-  }
-  function loadWinner(){
-    try{
-      var e = JSON.parse(localStorage.getItem(CHANNEL_WIN_KEY) || 'null');
-      if(e && e.base && e.ts && (Date.now() - e.ts) < CHANNEL_WIN_TTL) return e;
-    }catch(e){}
-    return null;
   }
 
   function restoreBtn(){
@@ -756,182 +695,27 @@
     rawSrc.textContent = '来源：' + name;
   }
 
-  // 右上角只保留一个状态灯：绿=通道正常、红=异常、灰=尚未查询。
-  // 具体信息（优先通道、服务端缓存、可清缓存）放在点开的浮层里，兼容触屏无 hover。
-  var chanState = { proxy: '', relay: '', cache: '', serverCache: '', probe: '' };
-  function chanStatusText(){
-    if(chanState.proxy === 'err') return '异常';
-    if(chanState.proxy === 'on') return '正常';
-    if(chanState.cache === 'on') return '缓存';
-    return '待查询';
-  }
-  function renderChanLight(){
-    var el = $('chanLight');
-    if(!el) return;
-    var isErr = chanState.proxy === 'err' || chanState.relay === 'err';
-    var isOn = chanState.proxy === 'on' || chanState.relay === 'on' || chanState.cache === 'on';
-    el.classList.toggle('err', isErr);
-    el.classList.toggle('on', !isErr && isOn);
-    var txt = chanStatusText();
-    el.setAttribute('aria-label', '通道状态：' + txt);
-    el.title = '通道状态：' + txt;
-
-    var list = $('chanPopList');
-    if(!list) return;
-    list.innerHTML = '';
-    var win = loadWinner();
-    var rows = [
-      ['查询方式', win ? '最快通道优先' : '双通道并发'],
-      ['默认通道', win ? (win.label + '（剩 ' + Math.max(0, Math.round((CHANNEL_WIN_TTL - (Date.now() - win.ts)) / 60000)) + ' 分）') : '—'],
-      ['当前状态', txt],
-      ['可用代理', PROXIES.length + ' 个'],
-      ['服务端缓存', chanState.serverCache || '—']
-    ];
-    rows.forEach(function(pair){
-      var li = document.createElement('li');
-      var a = document.createElement('span');
-      a.textContent = pair[0];
-      var b = document.createElement('b');
-      b.textContent = pair[1];
-      li.appendChild(a);
-      li.appendChild(b);
-      list.appendChild(li);
-    });
-  }
-
-  function setChan(kind, state){
-    if(kind in chanState) chanState[kind] = state || '';
-    renderChanLight();
-  }
-
   function clearLocalCache(silent){
     cache = {};
     try{
       localStorage.removeItem(CACHE_KEY);
       localStorage.removeItem(CACHE_KEY_OLD);
     }catch(e){}
-    setChan('cache', '');
-    setChan('serverCache', '');
     if(!silent) toast('已清除本地缓存');
   }
 
-  function checkApi(){
-    // 逐个探测代理连通性（HEAD ?ping=1），任一可用即视为正常
-    if(!PROXIES.length){ setChan('proxy', 'err'); return; }
-    var left = PROXIES.length, okany = false;
-    PROXIES.forEach(function(base){
-      var done = false, ctrl = null;
-      try{ ctrl = new AbortController(); }catch(e){}
-      var timer = setTimeout(function(){
-        if(done) return;
-        done = true;
-        try{ if(ctrl) ctrl.abort(); }catch(e){}
-        settle(false);
-      }, 4000);
-      var opts = { method: 'HEAD', cache: 'no-store' };
-      if(ctrl) opts.signal = ctrl.signal;
-      fetch(base + (base.indexOf('?') >= 0 ? '&' : '?') + 'ping=1', opts)
-        .then(function(){ if(done) return; done = true; clearTimeout(timer); settle(true); })
-        .catch(function(){ if(done) return; done = true; clearTimeout(timer); settle(false); });
-      function settle(ok){
-        if(ok) okany = true;
-        left--;
-        if(left <= 0 && !okany) setChan('proxy', 'err');
-        else if(okany) setChan('proxy', 'on');
-      }
-    });
-  }
-
-  function nowMs(){
-    return (window.performance && performance.now) ? performance.now() : Date.now();
-  }
-
-  // 同一代理只保留一份（单代理时 channelList 会生成两条相同通道）
-  function uniqueChannels(chs){
-    var seen = {}, out = [];
-    chs.forEach(function(ch){
-      if(!seen[ch.base]){ seen[ch.base] = 1; out.push(ch); }
-    });
-    return out;
-  }
-
-  // 通道列表（自动）：按配置的代理顺序取前两个；只有一个代理时并发两次，
-  // 由服务端 singleflight 合并成一次上游请求。
+  // 查询通道：自建代理（自定义优先，其次默认地址）→ CF 中转；失败逐个回退。
   function channelList(){
     var out = [];
-    var ps = PROXIES.length ? PROXIES : [PROXY_DEFAULT];
-    ps.slice(0, 2).forEach(function(p, i){
-      out.push({ base: p, label: proxyName(p) + (i ? ' · 备用' : '') });
-    });
-    if(out.length === 1){
-      out.push({ base: out[0].base, label: '并发通道' });
-    }
+    var custom = customProxy();
+    if(custom) out.push({ kind: 'proxy', label: '自定义代理', base: custom, timeout: 8000 });
+    out.push({ kind: 'proxy', label: '自建代理', base: PROXY_DEFAULT, timeout: 8000 });
+    out.push({ kind: 'relay', label: 'CF 中转', base: RELAY_BASE, timeout: 15000 });
     return out;
-  }
-
-  // 整点轮询：并发向各通道发一次探测查询，最先返回的通道即本轮最快通道，
-  // 记为接下来一小时的默认查询方式。
-  function runChannelProbe(){
-    var num = String(PROBE_PHONE || '').trim();
-    if(num.length !== 11){
-      if(!probeWarned){
-        probeWarned = true;
-        toast('未配置 PROBE_PHONE，小时轮询已跳过', true);
-      }
-      return;
-    }
-    var chs = uniqueChannels(channelList());
-    if(!chs.length) return;
-    var t0 = nowMs();
-    var settled = false, pending = chs.length;
-    var controllers = [];
-
-    function abortAll(){
-      controllers.forEach(function(c){ try{ c.abort(); }catch(e){} });
-      controllers = [];
-    }
-    function finish(ch){
-      if(settled) return;
-      settled = true;
-      abortAll();
-      saveWinner(ch.base, ch.label, nowMs() - t0);
-      setChan('probe', ch.label);
-    }
-    function finalizeFail(){
-      if(settled) return;
-      settled = true;
-      abortAll();
-      setChan('probe', '轮询失败');
-    }
-    function finishOne(){
-      pending--;
-      if(pending <= 0) finalizeFail();
-    }
-    chs.forEach(function(ch){
-      var ctrl = requestVia(ch.base, num, RETRY_TIMEOUT, function(err){
-        if(settled) return;
-        if(err){ finishOne(); return; }
-        finish(ch);
-      });
-      if(ctrl) controllers.push(ctrl);
-    });
-  }
-
-  // 每到整点触发一轮轮询，随后按同样节奏排下一轮
-  function scheduleHourlyPoll(){
-    var d = new Date();
-    d.setMinutes(0, 0, 0);
-    var top = d.getTime();
-    if(top <= Date.now() - 1000) top += 60 * 60 * 1000;
-    setTimeout(function(){
-      runChannelProbe();
-      scheduleHourlyPoll();
-    }, Math.max(top - Date.now(), 1000));
   }
 
   function setProxy(){
-    var cur = hasCustomProxy() ? PROXIES[0] : '';
-    var v = window.prompt('自定义代理地址（例如 https://你的域名/proxy.php）\n代理会收到查询号码，请使用你自己的主机。留空恢复默认。', cur);
+    var v = window.prompt('自定义代理地址（可选，优先级高于默认自建代理）。\n代理需要接收查询号码，请只填你自己的主机；留空则恢复默认。', customProxy());
     if(v == null) return;
     v = v.trim();
     if(v && !/^https?:\/\//i.test(v)){
@@ -946,10 +730,8 @@
       if(v) localStorage.setItem(PROXY_KEY, v);
       else localStorage.removeItem(PROXY_KEY);
     }catch(e){}
-    PROXIES = buildProxyList();
     clearLocalCache(true);
-    toast(v ? '代理已保存，正在重新查询' : '已恢复默认代理');
-    checkApi();
+    toast(v ? '已保存自定义代理，正在重新查询' : '已恢复默认代理');
     if(phone.value.trim().length === 11) query(true);
   }
 
@@ -1447,7 +1229,6 @@
       restoreBtn();
       rawShow(hit.txt, '缓存', true);
       rawSource('本地缓存 · 原：' + (hit.src || '未知'));
-      setChan('cache', 'on');
       render(hit.data, num);
       emptyCard.classList.remove('show');
       dataArea.style.display = 'block';
@@ -1458,13 +1239,10 @@
     btn.disabled = true;
     btn.classList.add('loading');
     btnTxt.textContent = '查询中';
-    setChan('cache', '');
-    setChan('serverCache', '');
     inputState.className = 'state idle'; inputState.textContent = '查询中';
     rawShow('正在请求接口…', '请求中', null);
 
-    // 默认查询方式：整点轮询选出的最快通道优先，失败自动回退其余通道；
-    // 尚无轮询结果时保持双通道并发（同时发，先到先得）。
+    // 通道并发：先拿到有效数据者生效，失败的通道自动跳过。
     var empties = [], errs = [], won = false;
     var settled = false, controllers = [];
 
@@ -1482,9 +1260,7 @@
       restoreBtn();
       cache[phoneKey(num)] = { txt: stripPhone(txt, num), data: data, ts: Date.now(), src: src };
       saveCache();
-      setChan('proxy', 'on');
       var cacheTag = (meta && meta.cache) ? (meta.cache + (meta.age ? (' · ' + meta.age + 's') : '')) : '';
-      setChan('serverCache', cacheTag);
       rawShow(txt, '成功', true);
       rawSource(src + (cacheTag ? ' · 服务端缓存 ' + cacheTag : ''));
       render(data, num);
@@ -1510,44 +1286,30 @@
         var msg = errs.length ? errs[0] : '网络异常';
         rawShow('请求失败：' + msg, '失败', false);
         rawSource('全部通道失败');
-        setChan('proxy', 'err');
         showEmpty();
         inputState.className = 'state err'; inputState.textContent = '查询失败';
         toast('查询失败：' + msg, true);
       }
     }
 
-    // 通道顺序：轮询胜出的通道排最前，其余保持原顺序；同一代理只保留一份
-    function orderedChannels(){
-      var chs = uniqueChannels(channelList());
-      var win = loadWinner();
-      if(win){
-        for(var i = 0; i < chs.length; i++){
-          if(chs[i].base === win.base){
-            if(i > 0){ var tmp = chs[0]; chs[0] = chs[i]; chs[i] = tmp; }
-            break;
-          }
-        }
-      }
-      return chs;
-    }
-
+    // 通道按顺序回退：自建代理 → CF 中转，任一拿到有效数据即止。
     function dispatch(){
-      var ordered = orderedChannels();
-      var win = loadWinner();
-      rawSource(win ? ('默认通道：' + win.label + '（失败自动回退）') : '双通道并发查询中…');
-      fireNext(ordered);
+      var chs = channelList();
+      rawSource('正在查询 · ' + chs[0].label);
+      fireNext(chs);
     }
 
-    function fireNext(ordered){
+    function fireNext(list){
       if(settled || won || mySeq !== reqSeq) return;
-      if(!ordered.length){ finalize(); return; }
-      var ch = ordered.shift();
-      var ctrl = requestVia(ch.base, num, RETRY_TIMEOUT, function(err, txt, meta){
+      if(!list.length){ finalize(); return; }
+      var ch = list.shift();
+      var send = ch.kind === 'relay' ? requestRelay : requestVia;
+      var ctrl = send(ch.base, num, ch.timeout || RETRY_TIMEOUT, function(err, txt, meta){
         if(settled || won || mySeq !== reqSeq) return;
         if(err){
-          errs.push(err.message || '网络异常');
-          fireNext(ordered);
+          errs.push(ch.label + '：' + (err.message || '网络异常'));
+          if(list.length) rawSource(ch.label + ' 不可用，改用 ' + list[0].label + '…');
+          fireNext(list);
           return;
         }
         var data = parseNative(txt);
@@ -1563,7 +1325,7 @@
           return;
         }
         errs.push('返回内容无法解析');
-        fireNext(ordered);
+        fireNext(list);
       });
       if(ctrl) controllers.push(ctrl);
     }
@@ -1618,7 +1380,33 @@
       return ctrl;
     }
 
-    function startFallbacks(){ return; }
+    // CF 中转：GET 转发上游完整地址，直接回上游原始 JSON
+    function requestRelay(base, n, timeout, cb){
+      var ctrl = null, timer = null, called = false;
+      function done(err, txt){
+        if(called) return;
+        called = true;
+        if(timer) clearTimeout(timer);
+        cb(err, txt, { cache: '', age: '' });
+      }
+      try{ ctrl = new AbortController(); }catch(e){}
+      if(ctrl){
+        timer = setTimeout(function(){
+          try{ ctrl.abort(); }catch(e){}
+          done(new Error('请求超时'));
+        }, timeout);
+      }
+      var opts = { method: 'GET', cache: 'no-store' };
+      if(ctrl) opts.signal = ctrl.signal;
+      fetch(base + encodeURIComponent(upstreamUrl(n)), opts)
+        .then(function(r){
+          if(!r.ok) throw new Error(r.status === 429 ? '请求过于频繁' : ('HTTP ' + r.status));
+          return r.text();
+        })
+        .then(function(t){ done(null, t); })
+        .catch(function(err){ done(err); });
+      return ctrl;
+    }
 
   function showEmpty(){
     dataArea.style.display = 'none';
@@ -1647,36 +1435,6 @@
   phone.addEventListener('input', onInput);
   phone.addEventListener('keydown', function(e){ if(e.key === 'Enter') query(true); });
   btn.addEventListener('click', function(){ query(true); });
-  renderChanLight();
-  function toggleChanPop(show){
-    var pop = $('chanPop');
-    if(!pop) return;
-    var want = (show == null) ? pop.hidden : !!show;
-    pop.hidden = !want;
-    if(want) renderChanLight();
-  }
-  chanBar.addEventListener('click', function(e){
-    e.stopPropagation();
-    toggleChanPop();
-  });
-  chanBar.addEventListener('keydown', function(e){
-    if(e.key !== 'Enter' && e.key !== ' ') return;
-    e.preventDefault();
-    toggleChanPop();
-  });
-  document.addEventListener('click', function(e){
-    var pop = $('chanPop');
-    if(!pop || pop.hidden) return;
-    if(pop.contains(e.target) || chanBar.contains(e.target)) return;
-    pop.hidden = true;
-  });
-  $('chanClearCache').addEventListener('click', function(){
-    clearLocalCache();
-    toggleChanPop(false);
-  });
-  checkApi();
-  setInterval(checkApi, 60000);
-  scheduleHourlyPoll();
   $('rawHead').addEventListener('click', function(){ rawFloat.classList.toggle('collapsed'); });
   $('rawProxy').addEventListener('click', function(e){ e.stopPropagation(); setProxy(); });
 
