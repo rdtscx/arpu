@@ -12,7 +12,7 @@ Cloudflare 隧道  https://<随机>.trycloudflare.com     ← cloudflared 在服
    │
    ▼
 VPS 103.236.93.69（NAT 只映射 49014→22，公网 80/443 不可用，所以走隧道）
-   │  proxy.py 监听 127.0.0.1:8787：白名单 CORS + 每 IP 60 次/分钟限流 + 10 分钟缓存
+   │  proxy.py 监听 127.0.0.1:8787：白名单 CORS + 每 IP 60 次/分钟限流 + 成功结果缓存 30 分钟（过期先回旧值后台刷新）
    ▼
 ysmapp.bj.10086.cn   （ACAO 固定为自己的域名、OPTIONS 403，浏览器不能直连）
 ```
@@ -24,7 +24,7 @@ ysmapp.bj.10086.cn   （ACAO 固定为自己的域名、OPTIONS 403，浏览器�
 
 | 组件 | 路径 | 说明 |
 |---|---|---|
-| 代理服务 | `/opt/arpu/proxy.py` + `arpu-proxy.service` | Python 标准库实现，只监听 127.0.0.1:8787 |
+| 代理服务 | `/opt/arpu/proxy.py` + `arpu-proxy.service` | Python 标准库实现，只监听 127.0.0.1:8787；HTTP/1.1 长连接 |
 | 隧道 | `arpu-tunnel.service`（cloudflared） | `cloudflared tunnel --url http://127.0.0.1:8787`，日志在 `/opt/arpu/tunnel.log` |
 | 地址同步 | `/opt/arpu/publish.sh` + `arpu-publish.timer` | 开机 15s 后开始，每 20s 一轮；地址变了且 `?ping=1` 通才更新仓库 `current.json` 并 push（deploy key `arpu-publisher`） |
 | 看门狗 | `/opt/arpu/watchdog.sh` + `arpu-watchdog.timer` | 开机 60s 后开始，每 2 分钟查一次：代理 ping 不通 → 重启代理；隧道地址访问不通 → 重启隧道 |
@@ -57,12 +57,18 @@ quick tunnel 的域名重启后会变，所以不要把它当成固定域名写�
 
 ## 查询耗时构成（2026-11-21 实测）
 
-| 环节 | 耗时 | 现状 |
+| 环节 | 改前 | 改后 |
 |---|---|---|
-| 读取 `current.json`（GitHub Pages） | 0.5~2.5s | 已在加载时预取 |
-| Cloudflare quick tunnel 建连 | 1~2s | 已预热复用 |
-| 代理命中 10 分钟缓存 | +0~1s | 正常 |
-| 代理未命中、回源 10086 | 6~13s | **主要瓶颈**；需在服务端并行化/延长缓存才能改善 |
+| 读取 `current.json`（GitHub Pages） | 0.3~2.5s | 加载即预取，查询不再等 |
+| Cloudflare quick tunnel 建连（TLS/HTTP2） | 每次查询重建 1~5s | 代理改 `HTTP/1.1` keep-alive + 页面 `preconnect`，复用连接 |
+| 代理命中缓存 | 0.9~3.5s | 0.4~0.7s |
+| 代理未命中、回源 10086 | 2.9~13s，偶发 502 | 0.5~1.1s（服务器侧直连实测） |
+
+页面端实测：同一号码首次查询 5.3s → 2.1~2.4s，重复查询 0.1s（本地缓存 30 分钟）。
+
+关键修正：`proxy.py` 原先用 `BaseHTTPRequestHandler` 默认的 **HTTP/1.0**，响应不带 keep-alive，
+每个请求都关连接——浏览器每次查询都要重新做一次 TLS 握手（实测 1.5~5s），这是「查询慢」的主因。
+现改为 `protocol_version = 'HTTP/1.1'` + 显式 `Content-Length`。
 
 上游偶尔返回 `errorCode:"error"`、`errorMsg:"查询用户信息失败"` 但 `entity` 里数据完整，
 前端按 `entity` 解析，不看 `errorCode`。
