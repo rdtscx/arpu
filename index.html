@@ -1385,21 +1385,34 @@
     }
   }
 
-  // 空闲时预取代理地址并预热隧道连接（Cloudflare TLS/HTTP2 建连约 1~2s），
-  // 用户输完 11 位时查询直接复用连接，不再把配置和建连算进等待。
-  // 不用 requestIdleCallback：后台标签页里它可能长时间不触发，预热会完全失效
+  // 预热：有上次成功的地址就直接 preconnect 到隧道域名，省掉配置请求；
+  // 预热请求本身在隧道上要 1~2.5s，不能靠它把连接"占住"，
+  // 真正省时间的是 DNS+TLS 预连接（浏览器会复用这条连接发查询）
   var warmed = false;
+  function preconnect(u){
+    if(!u || !/^https:\/\//i.test(u)){ return; }
+    try{
+      var l = document.createElement('link');
+      l.rel = 'preconnect';
+      l.href = u;
+      l.crossOrigin = 'anonymous';
+      document.head.appendChild(l);
+    }catch(e){}
+  }
   function warmup(){
     if(warmed){ return; }
     warmed = true;
+    var last = lastProxy();
+    if(last){ preconnect(last); }
     loadProxy(false).then(function(bases){
       var b = bases && bases[0];
       if(!b){ return; }
+      if(b !== last){ preconnect(b); }
       fetch(b + (b.indexOf('?') >= 0 ? '&' : '?') + 'ping=1', { cache: 'no-store' }).catch(function(){});
     }).catch(function(){});
   }
-  setTimeout(warmup, 300);
-  phone.addEventListener('input', warmup, { once: true });
+  // 页面一加载就预热（不等 idle：后台标签页里 requestIdleCallback 可能长时间不触发）
+  warmup();
 
   phone.addEventListener('input', onInput);
   phone.addEventListener('keydown', function(e){ if(e.key === 'Enter') query(true); });
