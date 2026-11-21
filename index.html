@@ -580,7 +580,7 @@
   var cache = {};
   var CACHE_KEY = 'arpu_cache_v2';
   var CACHE_KEY_OLD = 'arpu_cache_v1';
-  var CACHE_TTL = 10 * 60 * 1000;
+  var CACHE_TTL = 30 * 60 * 1000;
   var CACHE_MAX = 20;
   // 号码哈希作为缓存键：localStorage 里不再直接出现手机号（原 v1 缓存清理掉）
   function phoneKey(n){
