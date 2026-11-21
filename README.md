@@ -1,75 +1,100 @@
-# arpu · 北京移动资费 / ARPU 查询
+# 运营商资费监控 · 数据展示站
 
-静态前端（GitHub Pages）+ 自建后端（云服务器上的 Python 代理，经 Cloudflare 隧道提供 HTTPS）。
+本仓库是一个**自包含**的运营商资费监控项目：定时抓取移动 / 联通 / 电信 / 广电四家运营商官网的公开资费数据，
+自动构建静态展示站点，并可选推送变化到钉钉 / 飞书 / 企业微信 / 邮箱。
 
-## 架构
+抓取、构建、推送全部由本仓库的 GitHub Actions 完成（公开仓免费且不限量），
+**不含任何代码密钥**——所有凭据走环境变量与 Secrets。
 
-```
-浏览器  https://rdtscx.github.io/arpu/
-   │  POST /  {"phone":"13xxxxxxxxx"}        （页面先读同源 current.json 拿地址）
-   ▼
-Cloudflare 隧道  https://<随机>.trycloudflare.com     ← cloudflared 在服务器上常驻
-   │
-   ▼
-VPS 103.236.93.69（NAT 只映射 49014→22，公网 80/443 不可用，所以走隧道）
-   │  proxy.py 监听 127.0.0.1:8787：白名单 CORS + 每 IP 60 次/分钟限流 + 10 分钟缓存
-   ▼
-ysmapp.bj.10086.cn   （ACAO 固定为自己的域名、OPTIONS 403，浏览器不能直连）
-```
+> **调度说明**：四站由主站 `mobile-build.yml` 统一定时（每 2 小时一轮），每轮开始时
+> 同一个工作流的 `subsites` 作业一并派发联通 / 电信 / 广电，三家与移动保持同一刷新频率；
+> `mobile-heartbeat.yml` / `ops-heartbeat.yml` / `build-watchdog.yml` 按数据陈旧度兜底，
+> 绕开 GitHub schedule 丢触发 / 数小时延迟。
 
-代理存在的唯一原因：上游 `Access-Control-Allow-Origin` 是 `https://ysmapp.bj.10086.cn`，
-且 `OPTIONS` 返回 403。
+## 在线访问
 
-## 后端部署（在 VPS 上，一次性）
+- 中国移动：<https://rdtscx.github.io/tariff/>
+- 中国联通：<https://rdtscx.github.io/tariff/unicom/>
+- 中国电信：<https://rdtscx.github.io/tariff/telecom/>
+- 中国广电：<https://rdtscx.github.io/tariff/gb/>
 
-| 组件 | 路径 | 说明 |
-|---|---|---|
-| 代理服务 | `/opt/arpu/proxy.py` + `arpu-proxy.service` | Python 标准库实现，只监听 127.0.0.1:8787 |
-| 隧道 | `arpu-tunnel.service`（cloudflared） | `cloudflared tunnel --url http://127.0.0.1:8787`，日志在 `/opt/arpu/tunnel.log` |
-| 地址同步 | `/opt/arpu/publish.sh` + `arpu-publish.timer` | 开机 15s 后开始，每 20s 一轮；地址变了且 `?ping=1` 通才更新仓库 `current.json` 并 push（deploy key `arpu-publisher`） |
-| 看门狗 | `/opt/arpu/watchdog.sh` + `arpu-watchdog.timer` | 开机 60s 后开始，每 2 分钟查一次：代理 ping 不通 → 重启代理；隧道地址访问不通 → 重启隧道 |
+## 数据说明
 
-四个单元均 `systemctl enable`，**开机自动运行**；`arpu-tunnel` 设了 `StartLimitIntervalSec=0`，
-不会因为反复重试被 systemd 熔断。
+- **移动**：全网资费（全国）+ 31 省，含套餐 / 加装包 / 营销活动 × 个人 / 政企 全分类
+- **联通 / 电信 / 广电**：全国 + 31 省资费（广电另含独立区划的广州 / 深圳）
+- 四家均由本仓库的 GitHub Actions 统一调度抓取并自动部署更新（主站每 2 小时一轮，
+  联通 / 电信 / 广电跟随主站节拍由主站派发，心跳与看门狗按陈旧度兜底），无需外部依赖
+- 数据均为运营商官网公示的公开信息，仅供参考，办理业务请以营业厅官方信息为准
 
-前端不写死地址：每次查询先读同源 `current.json`，再回退到 localStorage 里上次成功的地址，
-都不行就重新拉一次配置再试，三次都失败才报错。
+## 站点功能
 
-### 重启后会发生什么（2026-11-20 实测）
+省份切换与搜索、分类筛选、资费变化历史追踪、**CSV 导出**、**收藏关注**（保存在本机浏览器）。
 
-```
-18:27:23  reboot
-18:28:25  cloudflared 重新连接拿到新地址，publish 已把它写进 current.json
-18:29:xx  GitHub Pages 重新部署完成
-          → 页面无需任何人工操作，直接可查（旧地址的白名单也仍可用）
-```
 
-quick tunnel 的域名重启后会变，所以不要把它当成固定域名写死在使用方；
-要做完全固定的域名，需要域名接入 Cloudflare 后改用 named tunnel（或在能占用 80/443 的主机上直接签证书）。
+---
 
-## 查询流程
+## 📮 接入你自己的通知通道
 
-1. 输满 11 位或点「查询话费」→ 读 `current.json` 取代理地址
-2. `POST {phone}` 到代理；旧代理不支持 POST 时退回 `GET ?phone=`
-3. 拿到数据后渲染账单；10 分钟内的同号码命中本地缓存
-4. 结果区只显示解析后的账单，原始响应（含失败原因）只在左下角「接口原始数据」浮窗
+fork 本项目后，填入**你自己的**凭据，资费变化就能推送到**你的**
+**钉钉 / 飞书 / 企业微信 / 邮箱**。四个通道任意组合，配几个推几个。
 
-上游偶尔返回 `errorCode:"error"`、`errorMsg:"查询用户信息失败"` 但 `entity` 里数据完整，
-前端按 `entity` 解析，不看 `errorCode`。
+**完整教程见 → [NOTIFY_SETUP.md](NOTIFY_SETUP.md)**
 
-## 排错
-
-| 现象 | 处理 |
+| 通道 | 要填的 Secrets |
 |---|---|
-| 查询失败，浮窗里是「请求超时 / Failed to fetch」 | `curl -s https://<隧道地址>/?ping=1` 看隧道和代理是否在线；`systemctl status arpu-proxy arpu-tunnel` |
-| 隧道地址变了但页面还在用旧地址 | `systemctl status arpu-publish.timer`；手动 `systemctl start arpu-publish.service` |
-| 浏览器报 CORS | 代理只放行 `https://rdtscx.github.io`；换了站点域名要改 `proxy.py` 的 `ALLOWED_ORIGINS` |
-| 显示「无记录」 | 上游返回的 `entity` 里没有 `arpu_1..6`，表示该号码确实没有可查档位 |
-| 请求过于频繁 | 代理每 IP 每分钟 60 次 |
+| 🔵 钉钉 | `DINGTALK_WEBHOOK` + `DINGTALK_SECRET` |
+| 🟦 飞书 | `FEISHU_WEBHOOK` + `FEISHU_SECRET` |
+| 🟩 企业微信 | `WECOM_WEBHOOK` |
+| 📧 邮件 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `MAIL_TO` |
 
-## 备注
+三步速览：
 
-- 手机号只在代理内存里做缓存键（SHA-256），不写日志；前端缓存键是号码哈希。
-- 2026-11-20 已移除此前的所有中转方案（PHP 代理 `_proxy.php`、Cloudflare Worker、
-  `test.cors.workers.dev`、Jina）以及自动检测（状态灯 / 每分钟 ping / 整点轮询），
-  只保留这台服务器。
+1. 在对应群里添加机器人，拿到 Webhook 地址（邮件则用邮箱授权码）
+2. 仓库 **Settings → Secrets and variables → Actions** 添加上表变量
+3. Actions 运行 **Tariff Notify**，约 14 秒后收到；或本地 `python3 scripts/notify.py --test`
+
+推送示例：
+
+```
+- 🔵 移动：新增 340、下架 284、修改 1196
+  - 湖南：无变化
+
+**合计**：新增 340、下架 284、修改 1196
+🔗 查看完整资费站
+```
+
+> 🔒 密钥只存在你自己的仓库里，加密存储且**只写不读**，作者与他人均无法查看。
+> 抓取与推送脚本**不含任何硬编码凭据**，全部通过环境变量注入。
+
+## 自动化说明
+
+抓取与推送**全部在本仓库内完成**，跑于 GitHub Actions（公开仓免费、不限量）：
+
+| 工作流 | 频率（北京） | 说明 |
+|---|---|---|
+| `mobile-build.yml` | 每 2 小时（0/2/4…/22 点） | 移动抓取 + 站点构建 + 自动部署，并派发三家子站 |
+| `telecom-build.yml` | 跟随主站（每轮派发） | 电信抓取 + 站点构建 + 自动部署 |
+| `gb-build.yml` | 跟随主站（每轮派发） | 广电抓取 + 站点构建 + 自动部署 |
+| `unicom-build.yml` | 跟随主站（每轮派发） | 联通抓取 + 站点构建 + 自动部署 |
+| `mobile-heartbeat.yml` | 常驻循环（320 分钟自续） | 移动心跳：按线上数据陈旧度触发下一轮，不依赖 GitHub schedule |
+| `ops-heartbeat.yml` | 常驻循环（320 分钟自续） | 电信 / 联通 / 广电心跳：按线上数据陈旧度触发下一轮，不依赖 GitHub schedule |
+| `announce-sync.yml` | 每 1 小时（:17 / :47） | 移动公告同步 |
+| `dingtalk-summary.yml` | 每日 08:00 / 20:00 | 移动资费变化汇总推送 |
+| `build-watchdog.yml` | 每 30 分钟 | 看门狗：取消卡死超 2 小时的构建运行，防止并发组排死导致数据停更 |
+
+> 说明：2026-11-20 起三家子站不再各自依赖 schedule，统一由主站每轮抓取的 `subsites`
+> 作业派发（只跳过已有运行在跑的站点，避免并发组 cancel-in-progress 打断联通约 75 分钟的
+> 单轮抓取）；`ops-heartbeat.yml` 与 `build-watchdog.yml` 降为 3 小时陈旧度兜底。
+> probe / verify / diag-dns 等诊断类一次性工作流已删除，避免触发失败产生通知邮件。
+
+## UI 保护约定
+
+自动化任务只允许提交**数据产物**（`data/`、`pipelines/mobile/snapshots/`、`tariff-fetch-source.zip`），
+界面文件（`index.html`、`nav.html`、`push-center.html`、`manifest.json`、`version.json`、
+`unicom/`、`telecom/`、`gb/` 等）
+只由人工改动：
+
+- 各工作流的提交步骤一律使用带路径限定的 `git add`，不用 `git add -A`；
+- 提交前跑 `python3 scripts/guard_ui.py`，一旦发现界面文件被改动就还原并打日志；
+- `history.json` 用 `scripts/merge_history.py` 做并集，只增不减；
+- 人工改动界面时先 `git pull --rebase`，不要强制推送。
