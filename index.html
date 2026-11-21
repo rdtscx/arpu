@@ -1386,16 +1386,20 @@
   }
 
   // 空闲时预取代理地址并预热隧道连接（Cloudflare TLS/HTTP2 建连约 1~2s），
-  // 用户输完 11 位时查询直接复用连接，不再把配置和建连算进等待
+  // 用户输完 11 位时查询直接复用连接，不再把配置和建连算进等待。
+  // 不用 requestIdleCallback：后台标签页里它可能长时间不触发，预热会完全失效
+  var warmed = false;
   function warmup(){
+    if(warmed){ return; }
+    warmed = true;
     loadProxy(false).then(function(bases){
       var b = bases && bases[0];
       if(!b){ return; }
       fetch(b + (b.indexOf('?') >= 0 ? '&' : '?') + 'ping=1', { cache: 'no-store' }).catch(function(){});
     }).catch(function(){});
   }
-  if(window.requestIdleCallback){ try{ requestIdleCallback(warmup, { timeout: 1500 }); }catch(e){ setTimeout(warmup, 1200); } }
-  else { setTimeout(warmup, 1200); }
+  setTimeout(warmup, 300);
+  phone.addEventListener('input', warmup, { once: true });
 
   phone.addEventListener('input', onInput);
   phone.addEventListener('keydown', function(e){ if(e.key === 'Enter') query(true); });
