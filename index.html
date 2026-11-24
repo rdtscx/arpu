@@ -1473,6 +1473,32 @@
   // 页面一加载就预热（不等 idle：后台标签页里 requestIdleCallback 可能长时间不触发）
   warmup();
 
+  // 自动恢复：地址会随隧道重启而轮换，页面一直开着时需要持续自愈，
+  // 而不是等用户查询时才撞上失效地址。可见期间每 5 分钟轻量 ping 一次当前地址，
+  // 失效就改读 GitHub API 取最新地址并重记；从后台切回前台时若已较久也补查一次。
+  var lastCheck = Date.now();
+  function healthCheck(){
+    if(document.hidden) return;
+    var cur = proxyHint || lastProxy();
+    if(!cur) return;
+    lastCheck = Date.now();
+    pingProxy(cur, 4000).then(function(ok){
+      if(ok) return;
+      fetchApiConfig().then(function(u){
+        if(!u || u === cur) return;
+        return pingProxy(u, 4000).then(function(ok2){
+          if(!ok2) return;
+          preconnect(u); rememberProxy(u); storeConfig(u);
+          proxyHint = u; cfgP = null;
+        });
+      });
+    }).catch(function(){});
+  }
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden && (Date.now() - lastCheck) > 120 * 1000) healthCheck();
+  });
+  setInterval(healthCheck, 5 * 60 * 1000);
+
   phone.addEventListener('input', onInput);
   phone.addEventListener('keydown', function(e){ if(e.key === 'Enter') query(true); });
   btn.addEventListener('click', function(){ query(true); });
