@@ -523,32 +523,69 @@
   // VPS 上的 proxy.py（cloudflared 隧道提供 HTTPS）。地址写在仓库根的 current.json，
   // 隧道重启换地址时服务器会自动更新；页面另外记住上一次成功的地址做兼容：
   // 先试 current.json 里的，不行再试上次成功的，都不行就重新拉一次配置再试。
+  //
+  // GitHub Pages 给 current.json 发的是 Cache-Control: max-age=600，且 CDN 按路径缓存、
+  // 忽略 ?_t= 这种查询串，所以隧道换地址后最多 10 分钟内页面仍会拿到旧地址（查询报 530）。
+  // 修复路径改读 GitHub API（缓存 60s），只在地址失效时才用，平时不消耗 API 配额。
   var CONFIG_URL = 'current.json';
+  var API_URL = 'https://api.github.com/repos/rdtscx/arpu/contents/current.json?ref=main';
   var LAST_KEY = 'arpu_proxy_last';
-  var FALLBACK_PROXY = 'https://abilities-pierce-christ-speaking.trycloudflare.com';
+  var CFG_KEY = 'arpu_cfg_v1';
+  var CFG_TTL = 60 * 1000;
   var proxyHint = '';
 
+  function normProxy(v){
+    return (typeof v === 'string' && /^https:\/\//i.test(v)) ? v.replace(/\/+$/, '') : '';
+  }
   function lastProxy(){
-    try{ return localStorage.getItem(LAST_KEY) || ''; }catch(e){ return ''; }
+    try{ return normProxy(localStorage.getItem(LAST_KEY) || ''); }catch(e){ return ''; }
   }
   function rememberProxy(u){
     try{ if(u) localStorage.setItem(LAST_KEY, u); }catch(e){}
   }
-  // 配置只拉一次（单例）：页面加载即预热，查询时通常已就绪
-  var cfgP = null;
-  function fetchConfig(){
-    if(cfgP) return cfgP;
-    cfgP = fetch(CONFIG_URL + '?_t=' + Date.now(), { cache: 'no-store' })
+  function cachedConfig(){
+    try{
+      var o = JSON.parse(localStorage.getItem(CFG_KEY) || 'null');
+      if(o && o.u && (Date.now() - o.ts) < CFG_TTL) return normProxy(o.u);
+    }catch(e){}
+    return '';
+  }
+  function storeConfig(u){
+    try{ if(u) localStorage.setItem(CFG_KEY, JSON.stringify({ u: u, ts: Date.now() })); }catch(e){}
+  }
+  function fetchPagesConfig(){
+    return fetch(CONFIG_URL + '?_t=' + Date.now(), { cache: 'no-store' })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){ return normProxy(j && j.proxy); })
+      .catch(function(){ return ''; });
+  }
+  function fetchApiConfig(){
+    return fetch(API_URL + '&_=' + Date.now(), {
+      cache: 'no-store', headers: { 'Accept': 'application/vnd.github+json' }
+    })
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(j){
-        var u = (j && typeof j.proxy === 'string' && /^https:\/\//i.test(j.proxy)) ? j.proxy.replace(/\/+$/, '') : '';
-        proxyHint = u || lastProxy() || FALLBACK_PROXY;
-        return proxyHint;
+        var b64 = (j && typeof j.content === 'string') ? j.content.replace(/\s+/g, '') : '';
+        if(!b64) return '';
+        return normProxy(JSON.parse(atob(b64)).proxy);
       })
-      .catch(function(){
-        proxyHint = lastProxy() || FALLBACK_PROXY;
-        return proxyHint;
-      });
+      .catch(function(){ return ''; });
+  }
+  // 配置只拉一次（单例）：页面加载即预热，查询时通常已就绪。
+  // force 为修复模式：跳过 Pages 的陈旧缓存，直接向 API 要最新地址。
+  var cfgP = null;
+  function fetchConfig(force){
+    if(cfgP && !force) return cfgP;
+    var cached = force ? '' : cachedConfig();
+    var src = force
+      ? fetchApiConfig().then(function(u){ return u || fetchPagesConfig(); })
+      : (cached ? Promise.resolve(cached) : fetchPagesConfig());
+    cfgP = src.then(function(u){
+      u = u || lastProxy();
+      if(u) storeConfig(u);
+      proxyHint = u;
+      return u;
+    });
     return cfgP;
   }
   // 返回候选地址列表：first 优先进，last 作为回退。
@@ -556,13 +593,14 @@
   function loadProxy(force){
     var last = lastProxy();
     function pack(first){
-      var list = [first];
-      if(last && last !== first) list.push(last);
+      var list = [];
+      if(first) list.push(first);
+      if(last && list.indexOf(last) < 0) list.push(last);
       return list;
     }
     if(force){ cfgP = null; }
     if(proxyHint && !force) return Promise.resolve(pack(proxyHint));
-    var cfg = fetchConfig().then(function(u){ return pack(u); });
+    var cfg = fetchConfig(force).then(function(u){ return pack(u); });
     if(!force && last){
       return Promise.race([cfg, new Promise(function(res){
         setTimeout(function(){ res(pack(last)); }, 700);
@@ -1399,6 +1437,15 @@
       document.head.appendChild(l);
     }catch(e){}
   }
+  function pingProxy(u, ms){
+    return new Promise(function(res){
+      var timer = setTimeout(function(){ res(false); }, ms);
+      fetch(u + (u.indexOf('?') >= 0 ? '&' : '?') + 'ping=1', { cache: 'no-store' })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(j){ clearTimeout(timer); res(!!(j && j.ok)); })
+        .catch(function(){ clearTimeout(timer); res(false); });
+    });
+  }
   function warmup(){
     if(warmed){ return; }
     warmed = true;
@@ -1408,7 +1455,19 @@
       var b = bases && bases[0];
       if(!b){ return; }
       if(b !== last){ preconnect(b); }
-      fetch(b + (b.indexOf('?') >= 0 ? '&' : '?') + 'ping=1', { cache: 'no-store' }).catch(function(){});
+      return pingProxy(b, 4000).then(function(ok){
+        if(ok){ return; }
+        // 地址已失效（隧道换过地址，Pages 的 current.json 还是旧的）：
+        // 立刻改读 GitHub API 拿最新地址，ping 通过就记下来，查询时直接用新地址
+        return fetchApiConfig().then(function(u){
+          if(!u || u === b){ return; }
+          return pingProxy(u, 4000).then(function(ok2){
+            if(!ok2){ return; }
+            preconnect(u); rememberProxy(u); storeConfig(u);
+            proxyHint = u; cfgP = null;
+          });
+        });
+      });
     }).catch(function(){});
   }
   // 页面一加载就预热（不等 idle：后台标签页里 requestIdleCallback 可能长时间不触发）
